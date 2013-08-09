@@ -127,7 +127,7 @@ end
 # ============================================================================
 
 File.delete('app/views/layouts/application.html.erb')
-file 'app/views/layouts/application.slim', <<-SLIM
+file 'app/views/layouts/application.slim', <<-'SLIM'
 doctype html
 
 /[if lt IE 7]
