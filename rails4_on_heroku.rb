@@ -1,4 +1,26 @@
 # -*- coding: utf-8 -*-
+
+require 'open-uri'
+
+def download file_name, output_path
+  assets_path = 'https://github.com/61bits/rails-templates/raw/master/assets'
+  puts " \033[1;32mdownloading\033[0m    #{output_path}/#{file_name}"
+  File.open("#{output_path}/#{file_name}", 'wb') { |f| f.write open("#{assets_path}/#{file_name}").read }
+end
+
+def command?(name)
+  `which #{name}`
+  $?.success?
+end
+
+def ask_question question
+  ask "    \033[1;32masking\033[0m    #{question}?"
+end
+
+def ask_yes_or_no_question question
+  yes? "    \033[1;32masking\033[0m    #{question}?"
+end
+
 # ============================================================================
 # Unicorn + Foreman
 # ============================================================================
@@ -208,6 +230,16 @@ file 'app/views/layouts/_favicons.slim', <<'SLIM'
 == favicon_link_tag '/favicon.png', type: 'image/png'
 == favicon_link_tag '/favicon.ico'
 SLIM
+
+[ 'favicon.png', 
+  'favicon.ico', 
+  'apple-touch-icon-144x144-precomposed.png',
+  'apple-touch-icon-114x114-precomposed.png',
+  'apple-touch-icon-72x72-precomposed.png',
+  'apple-touch-icon-57x57-precomposed.png',
+  'apple-touch-icon-precomposed.png',
+  'apple-touch-icon.png',
+  'og-image.png' ].each { |f| download f, 'public' }
 
 file 'app/views/layouts/_browser_warning.slim', <<'SLIM'
 /[if lt IE 9]
@@ -695,10 +727,88 @@ route "get 'frontend/:template' => 'frontend#show'"
 route "get 'frontend'           => 'frontend#index'"
 
 # ============================================================================
+# crossdomain.xml, robots.txt and humans.txt
+# ============================================================================
+
+file 'public/crossdomain.xml', <<XML
+<?xml version="1.0"?>
+<!DOCTYPE cross-domain-policy SYSTEM "http://www.adobe.com/xml/dtds/cross-domain-policy.dtd">
+<cross-domain-policy>
+<!-- Read this: www.adobe.com/devnet/articles/crossdomain_policy_file_spec.html -->
+<!-- Most restrictive policy: -->
+	<site-control permitted-cross-domain-policies="none"/>
+<!-- Least restrictive policy: -->
+<!--
+	<site-control permitted-cross-domain-policies="all"/>
+	<allow-access-from domain="*" to-ports="*" secure="false"/>
+	<allow-http-request-headers-from domain="*" headers="*" secure="false"/>
+-->
+<!--
+  If you host a crossdomain.xml file with allow-access-from domain="*"
+  and don’t understand all of the points described here, you probably
+  have a nasty security vulnerability. ~ simon willison
+-->
+</cross-domain-policy>
+XML
+
+file 'public/robots.txt', <<TXT
+# http://www.robotstxt.org/
+User-agent: *
+Disallow:
+TXT
+
+team_name = ask_question 'Team name (for humans.txt)'
+team_url = ask_question 'Team full url (for humans.txt)'
+styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_name
+file 'public/humans.txt', <<TXT
+#{styled_team_name}
+
+The humans.txt file explains the team, technology, 
+and creative assets behind this site.
+http://humanstxt.org
+
+_______________________________________________________________________________
+TEAM
+
+This site was hand-crafted by #{team_name}
+#{team_url}
+
+_______________________________________________________________________________
+TECHNOLOGY
+
+Ruby on Rails
+http://rubyonrails.org
+
+HTML5 Boilerplate
+http://html5boilerplate.com
+
+Slim
+http://slim-lang.com
+
+Sass
+http://sass-lang.com
+
+Compass
+http://compass-style.org
+
+SingularityGS
+http://singularity.gs/
+
+jQuery
+http://jquery.com
+
+Modernizr
+http://modernizr.com
+
+CoffeeScript
+http://coffeescript.org
+TXT
+
+# ============================================================================
 # Formtastic
 # ============================================================================
 
-if yes? ">>> Install Formtastic?"
+if ask_yes_or_no_question 'Install formtastic'
   gem 'formtastic'
   generate 'formtastic:install'
 end
@@ -773,9 +883,9 @@ gem 'pg'
 gsub_file 'Gemfile', "gem 'sqlite3'", "# gem 'sqlite3'"
 gsub_file 'config/database.yml', /^(?!#)/, '#'
 
-database_prefix = ask '>>> What is your database prefix?'
-database_username = ask '>>> What is your database username?'
-database_password = ask '>>> What is your database password?'
+database_prefix = ask_question 'What is your database prefix'
+database_username = ask_question 'What is your database username'
+database_password = ask_question 'What is your database password'
 
 append_file 'config/database.yml', <<YML
 development:
