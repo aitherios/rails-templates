@@ -154,6 +154,84 @@ RUBY
 end
 
 # ============================================================================
+# crossdomain.xml, robots.txt and humans.txt
+# ============================================================================
+
+file 'public/crossdomain.xml', <<XML
+<?xml version="1.0"?>
+<!DOCTYPE cross-domain-policy SYSTEM "http://www.adobe.com/xml/dtds/cross-domain-policy.dtd">
+<cross-domain-policy>
+<!-- Read this: www.adobe.com/devnet/articles/crossdomain_policy_file_spec.html -->
+<!-- Most restrictive policy: -->
+	<site-control permitted-cross-domain-policies="none"/>
+<!-- Least restrictive policy: -->
+<!--
+	<site-control permitted-cross-domain-policies="all"/>
+	<allow-access-from domain="*" to-ports="*" secure="false"/>
+	<allow-http-request-headers-from domain="*" headers="*" secure="false"/>
+-->
+<!--
+  If you host a crossdomain.xml file with allow-access-from domain="*"
+  and don’t understand all of the points described here, you probably
+  have a nasty security vulnerability. ~ simon willison
+-->
+</cross-domain-policy>
+XML
+
+file 'public/robots.txt', <<TXT
+# http://www.robotstxt.org/
+User-agent: *
+Disallow:
+TXT
+
+team_name = ask_question 'Team name (for humans.txt)'
+team_url = ask_question 'Team full url (for humans.txt)'
+styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_name
+file 'public/humans.txt', <<TXT
+#{styled_team_name}
+
+The humans.txt file explains the team, technology, 
+and creative assets behind this site.
+http://humanstxt.org
+
+_______________________________________________________________________________
+TEAM
+
+This site was hand-crafted by #{team_name}
+#{team_url}
+
+_______________________________________________________________________________
+TECHNOLOGY
+
+Ruby on Rails
+http://rubyonrails.org
+
+HTML5 Boilerplate
+http://html5boilerplate.com
+
+Slim
+http://slim-lang.com
+
+Sass
+http://sass-lang.com
+
+Compass
+http://compass-style.org
+
+SingularityGS
+http://singularity.gs/
+
+jQuery
+http://jquery.com
+
+Modernizr
+http://modernizr.com
+
+CoffeeScript
+http://coffeescript.org
+TXT
+
+# ============================================================================
 # Pages Controller, Frontend Controller, HTML5Boilerplate Layout
 # ============================================================================
 
@@ -174,7 +252,7 @@ html.no-js lang="#{I18n.locale}"
   /! <![endif]
 
   head
-    title #{(content_for?(:title) ? "#{yield :title} — " : "") + 'Title' }
+    title #{(content_for?(:title) ? "#{yield :title} — " : "") + Rails.application.class.parent_name }
     == render 'layouts/metatags'
     == render 'layouts/favicons'
 
@@ -197,7 +275,7 @@ file 'app/views/layouts/_metatags.slim', <<'SLIM'
 // html metatags
 meta charset="utf-8"
 meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"
-meta name="author" content="61bits — http://61bits.com.br"
+meta name="author" content="TEAM_NAME — TEAM_URL"
 meta name="description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
 meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0"
 
@@ -213,6 +291,9 @@ meta property="og:locale" content="pt_BR"
 // humans.txt
 link rel="author" href="/humans.txt"
 SLIM
+
+gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_NAME', team_name
+gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_URL', team_url
 
 file 'app/views/layouts/_favicons.slim', <<'SLIM'
 == favicon_link_tag '/apple-touch-icon-144x144-precomposed.png', rel: 'apple-touch-icon', \
@@ -725,84 +806,6 @@ SLIM
 
 route "get 'frontend/:template' => 'frontend#show'"
 route "get 'frontend'           => 'frontend#index'"
-
-# ============================================================================
-# crossdomain.xml, robots.txt and humans.txt
-# ============================================================================
-
-file 'public/crossdomain.xml', <<XML
-<?xml version="1.0"?>
-<!DOCTYPE cross-domain-policy SYSTEM "http://www.adobe.com/xml/dtds/cross-domain-policy.dtd">
-<cross-domain-policy>
-<!-- Read this: www.adobe.com/devnet/articles/crossdomain_policy_file_spec.html -->
-<!-- Most restrictive policy: -->
-	<site-control permitted-cross-domain-policies="none"/>
-<!-- Least restrictive policy: -->
-<!--
-	<site-control permitted-cross-domain-policies="all"/>
-	<allow-access-from domain="*" to-ports="*" secure="false"/>
-	<allow-http-request-headers-from domain="*" headers="*" secure="false"/>
--->
-<!--
-  If you host a crossdomain.xml file with allow-access-from domain="*"
-  and don’t understand all of the points described here, you probably
-  have a nasty security vulnerability. ~ simon willison
--->
-</cross-domain-policy>
-XML
-
-file 'public/robots.txt', <<TXT
-# http://www.robotstxt.org/
-User-agent: *
-Disallow:
-TXT
-
-team_name = ask_question 'Team name (for humans.txt)'
-team_url = ask_question 'Team full url (for humans.txt)'
-styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_name
-file 'public/humans.txt', <<TXT
-#{styled_team_name}
-
-The humans.txt file explains the team, technology, 
-and creative assets behind this site.
-http://humanstxt.org
-
-_______________________________________________________________________________
-TEAM
-
-This site was hand-crafted by #{team_name}
-#{team_url}
-
-_______________________________________________________________________________
-TECHNOLOGY
-
-Ruby on Rails
-http://rubyonrails.org
-
-HTML5 Boilerplate
-http://html5boilerplate.com
-
-Slim
-http://slim-lang.com
-
-Sass
-http://sass-lang.com
-
-Compass
-http://compass-style.org
-
-SingularityGS
-http://singularity.gs/
-
-jQuery
-http://jquery.com
-
-Modernizr
-http://modernizr.com
-
-CoffeeScript
-http://coffeescript.org
-TXT
 
 # ============================================================================
 # Formtastic
