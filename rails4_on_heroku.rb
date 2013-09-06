@@ -73,10 +73,53 @@ end
 RUBY
 
 application(nil, env: :development) do <<RUBY
-config.logger = Logger.new(STDOUT)
-config.logger.level = Logger.const_get(ENV['LOG_LEVEL'] ? ENV['LOG_LEVEL'].upcase : 'DEBUG')
+
+  config.logger = Logger.new(STDOUT)
+  config.logger.level = Logger.const_get(ENV['LOG_LEVEL'] ? ENV['LOG_LEVEL'].upcase : 'DEBUG')
 RUBY
 end
+
+# ============================================================================
+# Application config
+# ============================================================================
+
+application do <<RUBY
+
+    config.filter_parameters += [:password, :password_confirmation]    
+    config.i18n.load_path += Dir[Rails.root.join('config', 'locales', '**/*.{rb,yml}').to_s]
+RUBY
+end
+
+if ask_yes_or_no_question "Change locale to pt-BR and time zone to Brazil's official time"
+application do <<RUBY
+
+    config.i18n.default_locale = 'pt-BR'
+    config.time_zone = 'Brasilia'
+RUBY
+end
+end
+
+# ============================================================================
+# Pry
+# ============================================================================
+
+gem 'pry'
+gem 'pry-doc'
+
+application do <<RUBY
+
+    console do
+      require 'pry'
+      config.console = Pry
+    end
+RUBY
+end
+
+# ============================================================================
+# Heroku
+# ============================================================================
+
+gem 'rails_12factor', group: :production
 
 # ============================================================================
 # Compass
