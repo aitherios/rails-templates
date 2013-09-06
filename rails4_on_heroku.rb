@@ -184,8 +184,8 @@ User-agent: *
 Disallow:
 TXT
 
-team_name = ask_question 'Team name (for humans.txt)'
-team_url = ask_question 'Team full url (for humans.txt)'
+team_name = ask_question 'Team name'
+team_url = ask_question 'Team full url'
 styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_name
 file 'public/humans.txt', <<TXT
 #{styled_team_name}
