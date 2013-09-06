@@ -6,13 +6,16 @@
 gem 'unicorn'
 gem 'foreman', group: :development
 
-file 'Procfile', <<FIN
+file 'Procfile', <<FILE
 web: bundle exec unicorn -p $PORT -c ./config/unicorn.rb
-FIN
+FILE
 
-file '.env', <<FIN
+file '.env', <<FILE
 WEB_CONCURRENCY=1
-FIN
+RACK_ENV=none
+RAILS_ENV=development
+APP_HOSTNAME=localhost
+FILE
 
 file 'config/unicorn.rb', <<RUBY
 worker_processes Integer(ENV["WEB_CONCURRENCY"] || 5)
@@ -47,6 +50,12 @@ after_fork do |server, worker|
 end
 RUBY
 
+application(nil, env: :development) do <<RUBY
+config.logger = Logger.new(STDOUT)
+config.logger.level = Logger.const_get(ENV['LOG_LEVEL'] ? ENV['LOG_LEVEL'].upcase : 'DEBUG')
+RUBY
+end
+
 # ============================================================================
 # Compass
 # ============================================================================
@@ -65,7 +74,7 @@ file 'app/assets/stylesheets/base/_all.sass', <<SASS
 // Styles relevant to the hole application, always.
 SASS
 
-Dir.mkdir File.join('app', 'assets', 'stylesheets', 'layouts')
+Dir.mkdir 'app/assets/stylesheets/layouts'
 file 'app/assets/stylesheets/layouts/_all.sass', <<SASS
 // ---------------------------------------------------------------------------
 //  LAYOUT IMPORTS
@@ -73,7 +82,7 @@ file 'app/assets/stylesheets/layouts/_all.sass', <<SASS
 // Styles relevant only to the page layouts.
 SASS
 
-Dir.mkdir File.join('app', 'assets', 'stylesheets', 'modules')
+Dir.mkdir 'app/assets/stylesheets/modules'
 file 'app/assets/stylesheets/modules/_all.sass', <<SASS
 // ---------------------------------------------------------------------------
 //  MODULE IMPORTS
@@ -81,7 +90,7 @@ file 'app/assets/stylesheets/modules/_all.sass', <<SASS
 // Styles relevant only to visual module components.
 SASS
 
-Dir.mkdir File.join('app', 'assets', 'stylesheets', 'states')
+Dir.mkdir 'app/assets/stylesheets/states'
 file 'app/assets/stylesheets/states/_all.sass', <<SASS
 // ---------------------------------------------------------------------------
 //  STATE IMPORTS
@@ -89,7 +98,7 @@ file 'app/assets/stylesheets/states/_all.sass', <<SASS
 // Styles relevant to state specializations.
 SASS
 
-Dir.mkdir File.join('app', 'assets', 'stylesheets', 'themes')
+Dir.mkdir 'app/assets/stylesheets/themes'
 file 'app/assets/stylesheets/themes/_all.sass', <<SASS
 // ---------------------------------------------------------------------------
 //  THEME IMPORTS
@@ -97,7 +106,7 @@ file 'app/assets/stylesheets/themes/_all.sass', <<SASS
 // Styles relevant to layout themes.
 SASS
 
-File.delete('app/assets/stylesheets/application.css')
+File.delete 'app/assets/stylesheets/application.css'
 file 'app/assets/stylesheets/application.sass', <<SASS
 @import "base/all"
 @import "layouts/all"
@@ -126,8 +135,9 @@ end
 # Pages Controller, Frontend Controller, HTML5Boilerplate Layout
 # ============================================================================
 
-File.delete('app/views/layouts/application.html.erb')
-file 'app/views/layouts/application.slim', <<-'SLIM'
+File.delete 'app/views/layouts/application.html.erb'
+
+file 'app/views/layouts/application.slim', <<'SLIM'
 doctype html
 
 /[if lt IE 7]
@@ -159,15 +169,57 @@ html.no-js lang="#{I18n.locale}"
 
     section.page
       == yield
-
-    == render 'layouts/development' if Rails.env.development?
 SLIM
 
-Dir.mkdir('app/views/pages')
+file 'app/views/layouts/_metatags.slim', <<'SLIM'
+// html metatags
+meta charset="utf-8"
+meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"
+meta name="author" content="61bits — http://61bits.com.br"
+meta name="description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
+meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0"
 
-file 'app/views/pages/index.slim', <<RUBY
+// opengraph metatags
+meta property="og:image" content="http://#{ENV['APP_HOSTNAME']}/og-image.png"
+meta property="og:type" content="website"
+meta property="og:url" content="http://#{ENV['APP_HOSTNAME']}"
+meta property="og:title" content="#{content_for?(:title) ? yield(:title).to_s + '— ' : ''}#{Rails.application.class.parent_name}"
+meta property="og:description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
+meta property="og:locale" content="pt_BR"
+// meta property="fb:admins" content="#admin-id" 
+
+// humans.txt
+link rel="author" href="/humans.txt"
+SLIM
+
+file 'app/views/layouts/_favicons.slim', <<'SLIM'
+== favicon_link_tag '/apple-touch-icon-144x144-precomposed.png', rel: 'apple-touch-icon', \
+                                                                 type: 'image/png', \
+                                                                 sizes: '144x144'
+== favicon_link_tag '/apple-touch-icon-114x114-precomposed.png', rel: 'apple-touch-icon', \
+                                                                 type: 'image/png', \
+                                                                 sizes: '114x114'
+== favicon_link_tag '/apple-touch-icon-72x72-precomposed.png', rel: 'apple-touch-icon', \
+                                                               type: 'image/png', \
+                                                               sizes: '72x72'
+== favicon_link_tag '/apple-touch-icon-57x57-precomposed.png', rel: 'apple-touch-icon', \
+                                                               type: 'image/png', \
+                                                               sizes: '57x57'
+== favicon_link_tag '/favicon.png', type: 'image/png'
+== favicon_link_tag '/favicon.ico'
+SLIM
+
+file 'app/views/layouts/_browser_warning.slim', <<'SLIM'
+/[if lt IE 9]
+  p.chromeframe
+    == t 'app.lt_ie_9_warning'
+SLIM
+
+Dir.mkdir 'app/views/pages'
+
+file 'app/views/pages/index.slim', <<SLIM
 h1 pages#index
-RUBY
+SLIM
 
 file 'app/controllers/pages_controller.rb', <<RUBY
 class PagesController < ApplicationController
@@ -182,7 +234,7 @@ RUBY
 route "root to: 'pages#index'"
 route "get ':slug' => 'pages#show', as: :page"
 
-Dir.mkdir('app/views/frontend')
+Dir.mkdir 'app/views/frontend'
 
 file 'app/controllers/frontend_controller.rb', <<RUBY
 class FrontendController < ApplicationController
@@ -646,7 +698,7 @@ route "get 'frontend'           => 'frontend#index'"
 # Formtastic
 # ============================================================================
 
-if yes?(">>> Install Formtastic?")
+if yes? ">>> Install Formtastic?"
   gem 'formtastic'
   generate 'formtastic:install'
 end
@@ -717,11 +769,13 @@ FIN
 # ============================================================================
 
 gem 'pg'
+
 gsub_file 'Gemfile', "gem 'sqlite3'", "# gem 'sqlite3'"
 gsub_file 'config/database.yml', /^(?!#)/, '#'
-database_prefix = ask('>>> What is your database prefix?')
-database_username = ask('>>> What is your database username?')
-database_password = ask('>>> What is your database password?')
+
+database_prefix = ask '>>> What is your database prefix?'
+database_username = ask '>>> What is your database username?'
+database_password = ask '>>> What is your database password?'
 
 append_file 'config/database.yml', <<YML
 development:
@@ -752,14 +806,14 @@ test: &test
   timeout: 5000
 YML
 
-rake('db:create:all')
-rake('db:migrate')
+rake 'db:create:all'
+rake 'db:migrate'
 
 # ============================================================================
 # Git
 # ============================================================================
 
-append_file '.gitignore', <<FIN
+append_file '.gitignore', <<FILE
 *.gem
 *.rbc
 .config
@@ -784,7 +838,7 @@ doc/
 # Mac DS_Store
 **/.DS_Store
 .DS_Store
-FIN
+FILE
 
 git :init
 git add: "."
