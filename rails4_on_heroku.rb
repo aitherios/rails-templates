@@ -833,13 +833,13 @@ FIN
 # Licence
 # ============================================================================
 
-file 'LICENSE', <<FIN
+file 'LICENSE', <<FILE
 DUAL LICENSE: GPL3 and MIT
 
 
 The GNU Public License, Version 3 (GPL3)
 
-Copyright (c) 61bits
+Copyright (c) TEAM_NAME
 
 This program is free software: you can redistribute it and/or modify it under 
 the terms of the GNU General Public License as published by the 
@@ -857,7 +857,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 The MIT License (MIT)
 
-Copyright (c) 61bits
+Copyright (c) TEAM_NAME
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -875,7 +875,9 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-FIN
+FILE
+
+gsub_file 'LICENSE', 'TEAM_NAME', team_name
 
 # ============================================================================
 # Postgres
