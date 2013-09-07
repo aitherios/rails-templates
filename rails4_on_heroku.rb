@@ -126,6 +126,13 @@ gem 'rails_12factor', group: :production
 # ============================================================================
 
 gem 'compass-rails', '~> 2.0.alpha.0'
+gem 'compass-normalize'
+gem 'singularitygs'
+gem 'singularity-extras'
+gem 'breakpoint'
+gem 'color-schemer'
+gem 'toolkit'
+gem 'oily_png'
 
 # ============================================================================
 # SMACSS
@@ -137,6 +144,126 @@ file 'app/assets/stylesheets/base/_all.sass', <<SASS
 //  BASE IMPORTS
 // ---------------------------------------------------------------------------
 // Styles relevant to the hole application, always.
+
+// COMPASS
+// tollkit includes: compass, color-schemer and breakpoint
+@import "toolkit" 
+@import "singularitygs"
+@import "singularity-extras"
+@import "normalize"
+
+// BASE PARTIALS
+@import "variables"
+@import "mixins"
+@import "fonts"
+@import "lt_ie9"
+
+// BASE STYLES
+
++establish-baseline
+
+html
+  overflow-y: scroll
+
+body
+  color: $text-color
+  font-family: $sans-family
+  font-size: $base-font-size
+  line-height: $base-line-height
+
+*::selection
+  background: $text-selection-background
+  color: $text-selection-color
+
+SASS
+
+file 'app/assets/stylesheets/base/_variables.sass', <<SASS
+// SINGULARITYGS & BREAKPOINT
+$bp-320: 320px
+$bp-768: 768px
+$bp-1024: 1024px
+$bp-1280: 1280px
+$bp-1440: 1440px
+$bp-1920: 1920px
+//$grids: add-grid(4 at $bp-320)
+//$grids: add-grid(6 at $bp-768)
+//$grids: add-grid(9 at $bp-1024)
+//$grids: add-grid(12 at $bp-1280)
+//$grids: 12
+//$gutters: .2
+$breakpoint-no-queries: false
+$breakpoint-no-query-fallbacks: true
+
+// VERTICAL RHYTHM
+$base-font-size: 14px
+$base-line-height: 20px
+$round-to-nearest-half-line: false
+$font-unit: 14px
+
+// COMPASS CROSS-BROWSER SUPPORT
+$legacy-support-for-ie6: false
+$legacy-support-for-ie7: false
+$legacy-support-for-ie8: false
+
+// COMPASS DEFAULTS
+$default-text-shadow-blur: 0
+
+// COLORS
+$gray-dark: #333333
+$yellow: #ffc40d
+
+// TYPOGRAPHY
+$text-selection-color: $gray-dark
+$text-selection-background: lighten($yellow, 40)
+$sans-family: "Helvetica Neue", Helvetica, Arial, sans-serif
+$serif-family: "Georgia", "Times New Roman", Times, Cambria, Georgia, serif
+$monospace-family: "Monaco", "Courier New", monospace, sans-serif
+$text-color: $gray-dark !default
+
+SASS
+
+file 'app/assets/stylesheets/base/_fonts.sass', <<SASS
+@charset "UTF-8"
+// @import url(http://fonts.googleapis.com/css?family=PT+Sans+Caption:400,700)
+// +font-face("Font", font-files("font.woff", woff, "font.otf", opentype, "font.ttf", truetype, "font.svg", svg), "font.eot", bold, normal)
+SASS
+
+Dir.mkdir 'vendor/assets/fonts'
+file 'vendor/assets/fonts/.gitkeep', ''
+
+file 'app/assets/stylesheets/base/_mixins.sass', <<'SASS'
+=background-2x($background, $file: 'png')
+  $image: #{$background+"."+$file}
+  $image2x: #{$background+"@2x."+$file}
+  
+  background: image-url($image) no-repeat
+  @media (min--moz-device-pixel-ratio: 1.3),(-o-min-device-pixel-ratio: 2.6/2),(-webkit-min-device-pixel-ratio: 1.3),(min-device-pixel-ratio: 1.3),(min-resolution: 1.3dppx)
+    background-image: image-url($image2x)
+    background-size: image-width($image) image-height($image)
+
+=improve-text-rendering
+  text-rendering: optimizeLegibility
+  -webkit-font-smoothing: antialiased
+
+=fade-on-hover
+  +transition(0.25s)
+  &:hover
+    +opacity(0.8)
+
+=debug
+  background-color: rgba(red,0.6)
+
+SASS
+
+file 'app/assets/stylesheets/base/_lt_ie9.sass', <<SASS
+html.lt-ie9
+  body
+    header
+      display: none
+    section.page
+      display: none
+    footer
+      display: none
 SASS
 
 Dir.mkdir 'app/assets/stylesheets/layouts'
