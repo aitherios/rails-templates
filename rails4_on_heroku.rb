@@ -1267,6 +1267,7 @@ rdoc
 spec/reports
 test/tmp
 test/version_tmp
+vendor/
 
 # YARD artifacts
 .yardoc
