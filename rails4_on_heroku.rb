@@ -1283,6 +1283,9 @@ doc/
 .DS_Store
 FILE
 
+# PSD Files
+*.psd
+
 git :init
 git add: "."
 git commit: "-am 'Genesis'"
