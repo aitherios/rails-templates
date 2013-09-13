@@ -135,7 +135,7 @@ gem 'toolkit'
 gem 'oily_png'
 
 # ============================================================================
-# SMACSS
+# SASS & SMACSS
 # ============================================================================
 
 Dir.mkdir 'app/assets/stylesheets/base'
@@ -229,7 +229,7 @@ file 'app/assets/stylesheets/base/_fonts.sass', <<SASS
 SASS
 
 Dir.mkdir 'vendor/assets/fonts'
-file 'vendor/assets/fonts/.gitkeep', ''
+file 'vendor/assets/fonts/.keep', ''
 
 file 'app/assets/stylesheets/base/_mixins.sass', <<'SASS'
 =background-2x($background, $file: 'png')
@@ -306,6 +306,29 @@ file 'app/assets/stylesheets/application.sass', <<SASS
 @import "states/all"
 @import "themes/all"
 SASS
+
+# ============================================================================
+# Javascripts & Coffeescripts
+# ============================================================================
+
+gem 'modernizr-rails'
+gem 'selectivizr-rails'
+
+File.delete 'app/assets/javascripts/application.js'
+file 'app/assets/javascripts/application.coffee', <<COFFEE
+#= require jquery
+#= require jquery_ujs
+#= require modernizr
+COFFEE
+
+file 'app/assets/javascripts/lt_ie9.coffee', <<COFFEE
+#= require html5shiv-printshiv
+#= require nwmatcher
+#= require selectivizr
+COFFEE
+
+gem 'bower-rails'
+generate 'bower_rails:initialize'
 
 # ============================================================================
 # Slim
@@ -401,6 +424,9 @@ CoffeeScript
 http://coffeescript.org
 TXT
 
+
+
+
 # ============================================================================
 # Pages Controller, Frontend Controller, HTML5Boilerplate Layout
 # ============================================================================
@@ -430,9 +456,7 @@ html.no-js lang="#{I18n.locale}"
     == stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track' => true
     == javascript_include_tag 'application', 'data-turbolinks-track' => true
     /[if lt IE 9]
-      == javascript_include_tag 'nwmatcher-1.2.5', 'data-turbolinks-track' => true
-      == javascript_include_tag 'selectivizr', 'data-turbolinks-track' => true
-      == javascript_include_tag 'html5shiv-printshiv', 'data-turbolinks-track' => true
+      == javascript_include_tag 'lt_ie9', 'data-turbolinks-track' => true
 
   body class="#{yield :body_class}"
     == render 'layouts/browser_warning'
@@ -504,12 +528,16 @@ file 'app/views/pages/index.slim', <<SLIM
 h1 pages#index
 SLIM
 
-file 'app/controllers/pages_controller.rb', <<RUBY
+file 'app/controllers/pages_controller.rb', <<'RUBY'
 class PagesController < ApplicationController
   def index; end
 
   def show
-    render params[:template]
+    if template_exists?("pages/#{params[:slug]}")
+      render "pages/#{params[:slug]}" 
+    else
+      render file: "public/404.html", status: 404, layout: false      
+    end
   end
 end
 RUBY

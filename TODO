@@ -1,0 +1,18 @@
+* locales (add some international locales)
+* automaticaly bootstrap a heroku staging and production server
+* create staging environment
+* ask for jquery validate usage, add jquery validate and validate helpers
+* assets:sync
+** asset_host
+** rakefile
+* rack cahe
+* memcache
+* browser version warning styles
+* check base improts (sass imports)
+* add test suit (rspec or minitest, spork)
+* add auto test
+* ask for active_admin option
+* ask for devise
+** ask for devise google, twitter, facebook integration
+
+* check refinerycms
