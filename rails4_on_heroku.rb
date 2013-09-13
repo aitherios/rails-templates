@@ -1304,6 +1304,7 @@ rdoc
 spec/reports
 test/tmp
 test/version_tmp
+vendor/
 
 # YARD artifacts
 .yardoc
@@ -1318,6 +1319,9 @@ doc/
 **/.DS_Store
 .DS_Store
 FILE
+
+# PSD Files
+*.psd
 
 git :init
 git add: "."
