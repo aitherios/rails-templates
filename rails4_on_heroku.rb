@@ -311,9 +311,6 @@ SASS
 # Javascripts & Coffeescripts
 # ============================================================================
 
-gem 'modernizr-rails'
-gem 'selectivizr-rails'
-
 File.delete 'app/assets/javascripts/application.js'
 file 'app/assets/javascripts/application.coffee', <<COFFEE
 #= require jquery
@@ -322,13 +319,28 @@ file 'app/assets/javascripts/application.coffee', <<COFFEE
 COFFEE
 
 file 'app/assets/javascripts/lt_ie9.coffee', <<COFFEE
-#= require html5shiv-printshiv
-#= require nwmatcher
 #= require selectivizr
 COFFEE
 
 gem 'bower-rails'
 generate 'bower_rails:initialize'
+
+application do <<'RUBY'
+
+    Dir[Rails.root.join('vendor', 'assets', 'bower_components', '*' )].each do |dir|
+      config.assets.paths << File.join(dir, 'src') if File.directory?(File.join dir, 'src')
+      config.assets.paths << dir
+    end
+RUBY
+end
+
+inject_into_file 'bower.json', after: "    \"name\": \"bower-rails generated vendor assets\",\n    \"dependencies\": {\n" do <<'RUBY'
+      "selectivizr": "latest",
+      "modernizr": "latest"
+RUBY
+end
+
+rake 'bower:install'
 
 # ============================================================================
 # Slim
@@ -423,9 +435,6 @@ http://modernizr.com
 CoffeeScript
 http://coffeescript.org
 TXT
-
-
-
 
 # ============================================================================
 # Pages Controller, Frontend Controller, HTML5Boilerplate Layout
