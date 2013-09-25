@@ -15,4 +15,8 @@
 * ask for devise
 ** ask for devise google, twitter, facebook integration
 
+* ADD IF for support for (>= IE8) or (>= IE9)
+** jquery choice
+** less than IE javascript
+
 * check refinerycms
