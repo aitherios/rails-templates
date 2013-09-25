@@ -2,10 +2,16 @@
 
 require 'open-uri'
 
-def download file_name, output_path
+def download file, output_path
   assets_path = 'https://github.com/61bits/rails-templates/raw/master/assets'
-  puts " \033[1;32mdownloading\033[0m    #{output_path}/#{file_name}"
-  File.open("#{output_path}/#{file_name}", 'wb') { |f| f.write open("#{assets_path}/#{file_name}").read }
+
+  file_name = file =~ /^http/ ? /[^\/]+$/.match(file)[0] : file
+  file_url = file =~ /^http/ ? file : "#{assets_path}/#{file_name}"
+  output_file = "#{output_path}/#{file_name}"
+
+  puts " \033[1;32mdownloading\033[0m    #{output_file}"
+
+  File.open("#{output_file}", 'wb') { |f| f.write open("#{file_url}").read }
 end
 
 def command?(name)
@@ -80,12 +86,22 @@ RUBY
 end
 
 # ============================================================================
-# Application config
+# Devise
 # ============================================================================
+
 
 application do <<RUBY
 
     config.filter_parameters += [:password, :password_confirmation]    
+RUBY
+end
+
+# ============================================================================
+# Locales
+# ============================================================================
+
+application do <<RUBY
+
     config.i18n.load_path += Dir[Rails.root.join('config', 'locales', '**/*.{rb,yml}').to_s]
 RUBY
 end
@@ -97,6 +113,10 @@ application do <<RUBY
     config.time_zone = 'Brasilia'
 RUBY
 end
+end
+
+if ask_yes_or_no_question "Download pt-BR i18n file"
+  download 'https://github.com/svenfuchs/rails-i18n/raw/master/rails/locale/pt-BR.yml', 'config/locales'
 end
 
 # ============================================================================
@@ -348,12 +368,12 @@ rake 'bower:install'
 
 gem 'slim'
 
-application(nil, env: :development) do <<RUBY
+application(nil, env: :development) do <<'RUBY'
 Slim::Engine.set_default_options pretty: true, sort_attrs: false, format: :html5
 RUBY
 end
 
-application(nil, env: :production) do <<RUBY
+application(nil, env: :production) do <<'RUBY'
 Slim::Engine.set_default_options format: :html5
 RUBY
 end
@@ -1292,7 +1312,7 @@ rake 'db:migrate'
 # Git
 # ============================================================================
 
-append_file '.gitignore', <<FILE
+append_file '.gitignore', <<'FILE'
 *.gem
 *.rbc
 .config
@@ -1318,10 +1338,10 @@ doc/
 # Mac DS_Store
 **/.DS_Store
 .DS_Store
-FILE
 
 # PSD Files
 *.psd
+FILE
 
 git :init
 git add: "."
