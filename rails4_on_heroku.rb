@@ -337,10 +337,10 @@ SASS
 File.delete 'app/assets/stylesheets/application.css'
 file 'app/assets/stylesheets/application.sass', <<SASS
 @import "base/all"
-@import "layouts/all"
-@import "modules/all"
-@import "states/all"
-@import "themes/all"
+@import "layouts/*"
+@import "modules/*"
+@import "states/*"
+@import "themes/*"
 SASS
 
 # ============================================================================
