@@ -106,17 +106,33 @@ application do <<RUBY
 RUBY
 end
 
+file 'config/locales/app.en.yml', <<-'YML'
+en:
+  app:
+    old_ie_warning:
+      You are using an <strong>outdated</strong> browser. 
+      Please <a href="http://browsehappy.com/">upgrade your browser</a> or 
+      <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.
+YML
+
 if ask_yes_or_no_question "Change locale to pt-BR and time zone to Brazil's official time"
-application do <<RUBY
+  application do <<-'RUBY'
 
     config.i18n.default_locale = 'pt-BR'
     config.time_zone = 'Brasilia'
-RUBY
-end
-end
+  RUBY
+  end  
 
-if ask_yes_or_no_question "Download pt-BR i18n file"
   download 'https://github.com/svenfuchs/rails-i18n/raw/master/rails/locale/pt-BR.yml', 'config/locales'
+
+  file 'config/locales/app.pt-BR.yml', <<-'YML'
+pt-BR:
+  app:
+    old_ie_warning:
+      Você está usando um navegador <strong>desatualizado</strong>. 
+      Por favor <a href="http://browsehappy.com/">atualize o seu navegador</a> ou 
+      <a href="http://www.google.com/chromeframe/?redirect=true">ative o Google Chrome Frame</a> para melhorar a sua experiência.
+  YML
 end
 
 # ============================================================================
@@ -548,7 +564,7 @@ SLIM
 file 'app/views/layouts/_browser_warning.slim', <<'SLIM'
 /[if lt IE 9]
   p.chromeframe
-    == t 'app.lt_ie_9_warning'
+    == t 'app.old_ie_warning'
 SLIM
 
 Dir.mkdir 'app/views/pages'
