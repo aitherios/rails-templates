@@ -1073,7 +1073,52 @@ ruby-2.0.0-p247
 FIN
 
 # ============================================================================
-# Licence
+# Postgres
+# ============================================================================
+
+gem 'pg'
+
+gsub_file 'Gemfile', "gem 'sqlite3'", "# gem 'sqlite3'"
+gsub_file 'config/database.yml', /^(?!#)/, '#'
+
+database_prefix = ask_question 'What is your database prefix'
+database_username = ask_question 'What is your database username'
+database_password = ask_question 'What is your database password'
+
+append_file 'config/database.yml', <<YML
+development:
+  adapter: postgresql
+  encoding: unicode
+  database: #{database_prefix}_development
+  username: #{database_username}
+  password: #{database_password}
+  pool: 5
+  timeout: 5000
+
+production:
+  adapter: postgresql
+  encoding: unicode
+  database: #{database_prefix}_production
+  username: #{database_username}
+  password: #{database_password}
+  pool: 5
+  timeout: 5000
+
+test: &test
+  adapter: postgresql
+  encoding: unicode
+  database: #{database_prefix}_test
+  username: #{database_username}
+  password: #{database_password}
+  pool: 5
+  timeout: 5000
+YML
+
+rake 'db:create:all'
+rake 'db:migrate'
+
+# ============================================================================
+# License
 # ============================================================================
 
 if ask_yes_or_no_question 'Is this free software'
@@ -1278,51 +1323,6 @@ gsub_file 'LICENSE', 'TEAM_NAME', team_name
 gsub_file 'LICENSE', 'SOFTWARE_NAME', license_software_name
 
 end
-
-# ============================================================================
-# Postgres
-# ============================================================================
-
-gem 'pg'
-
-gsub_file 'Gemfile', "gem 'sqlite3'", "# gem 'sqlite3'"
-gsub_file 'config/database.yml', /^(?!#)/, '#'
-
-database_prefix = ask_question 'What is your database prefix'
-database_username = ask_question 'What is your database username'
-database_password = ask_question 'What is your database password'
-
-append_file 'config/database.yml', <<YML
-development:
-  adapter: postgresql
-  encoding: unicode
-  database: #{database_prefix}_development
-  username: #{database_username}
-  password: #{database_password}
-  pool: 5
-  timeout: 5000
-
-production:
-  adapter: postgresql
-  encoding: unicode
-  database: #{database_prefix}_production
-  username: #{database_username}
-  password: #{database_password}
-  pool: 5
-  timeout: 5000
-
-test: &test
-  adapter: postgresql
-  encoding: unicode
-  database: #{database_prefix}_test
-  username: #{database_username}
-  password: #{database_password}
-  pool: 5
-  timeout: 5000
-YML
-
-rake 'db:create:all'
-rake 'db:migrate'
 
 # ============================================================================
 # Git
