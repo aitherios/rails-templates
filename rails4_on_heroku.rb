@@ -563,8 +563,7 @@ SLIM
 
 file 'app/views/layouts/_browser_warning.slim', <<'SLIM'
 /[if lt IE 9]
-  p.chromeframe
-    == t 'app.old_ie_warning'
+  p.l-chromeframe == t 'app.old_ie_warning'
 SLIM
 
 Dir.mkdir 'app/views/pages'
