@@ -1,6 +1,8 @@
-* locales (add some international locales)
-* automaticaly bootstrap a heroku staging and production server
+
 * create staging environment
+
+* automaticaly bootstrap a heroku staging and production server
+
 * ask for jquery validate usage, add jquery validate and validate helpers
 * assets:sync
 ** asset_host
@@ -11,9 +13,12 @@
 * check base improts (sass imports)
 * add test suit (rspec or minitest, spork)
 * add auto test
+
 * ask for active_admin option
+
 * ask for devise
 ** ask for devise google, twitter, facebook integration
+** add devise localization (https://github.com/plataformatec/devise/wiki/I18n)
 
 * ADD IF for support for (>= IE8) or (>= IE9)
 ** jquery choice

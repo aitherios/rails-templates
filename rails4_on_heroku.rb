@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'open-uri'
+require 'i18n'
 
 def download file, output_path
   assets_path = 'https://github.com/61bits/rails-templates/raw/master/assets'
@@ -9,7 +10,7 @@ def download file, output_path
   file_url = file =~ /^http/ ? file : "#{assets_path}/#{file_name}"
   output_file = "#{output_path}/#{file_name}"
 
-  puts " \033[1;32mdownloading\033[0m    #{output_file}"
+  puts "    \033[1;32mdownload\033[0m    #{output_file}"
 
   File.open("#{output_file}", 'wb') { |f| f.write open("#{file_url}").read }
 end
@@ -19,12 +20,71 @@ def command?(name)
   $?.success?
 end
 
-def ask_question question
-  ask "    \033[1;32masking\033[0m    #{question}?"
+def clean_for_heroku(string)
+  I18n.transliterate(string).downcase.strip.gsub(/\s/, '-')
+end
+
+def ask_question question, fallback = ''
+  result = ''
+  if fallback.empty?
+    result = ask "    \033[1;32masking\033[0m    #{question}?"
+  else
+    result = ask "    \033[1;32masking\033[0m    #{question} (press enter for #{fallback})?"
+    result = result.empty? ? fallback : result
+  end
+  result
 end
 
 def ask_yes_or_no_question question
   yes? "    \033[1;32masking\033[0m    #{question}?"
+end
+
+def heroku command, repository = ''
+  if repository.empty?
+    run "heroku #{command}"
+  else
+    run "heroku #{command} -a #{repository}"
+  end
+end
+
+def bootstrap_heroku_environment environment, team_name = nil, software_name = nil
+  team_name = ask_question 'Team name' if team_name.nil?
+  team_name_for_heroku = clean_for_heroku(team_name)
+  team_name_for_heroku = "r#{team_name_for_heroku}" if team_name_for_heroku =~ /^\d/
+
+  software_name = ask_question 'Software name' if software_name.nil?
+  software_name_for_heroku = clean_for_heroku(software_name)
+
+  repository_name = ask_question "Name for #{environment}", "#{team_name_for_heroku}-#{software_name_for_heroku}-#{environment}"
+  repository_name = clean_for_heroku(repository_name)
+
+  heroku "create #{repository_name}"
+
+  heroku_info = `heroku info -a #{repository_name}`
+  heroku_domain = heroku_info.match(/(http:\/\/\S+)/)[1]
+
+  heroku "config:set APP_HOSTNAME=#{heroku_domain} WEB_CONCURRENCY=3", repository_name
+
+  if ask_yes_or_no_question('Bootstrap free Heroku addons')
+    heroku "config:add NEW_RELIC_APP_NAME=#{heroku_domain}", repository_name
+    heroku "addons:add newrelic:standard", repository_name
+    heroku "addons:add heroku-postgresql:dev", repository_name
+    heroku "addons:add pgbackups:auto-month", repository_name
+    heroku "addons:add sentry:developer", repository_name
+    heroku "addons:add papertrail:choklad", repository_name
+    heroku "addons:add scheduler:standard", repository_name
+
+    heroku "addons:add sendgrid:starter", repository_name if ask_yes_or_no_question('Bootstrap free Heroku email addon') 
+    heroku "addons:add zerigo_dns:basic", repository_name if ask_yes_or_no_question('Bootstrap free Heroku dns addon') 
+  end
+
+  git_url = heroku_info.match(/(git@\S+)/)[1]
+  git remote: "add #{environment} #{git_url}"
+
+  if ask_yes_or_no_question('Push to Heroku')
+    git push: "#{environment} master"
+    heroku "run rake db:migrate", repository_name
+  end
 end
 
 # ============================================================================
@@ -1361,4 +1421,22 @@ FILE
 
 git :init
 git add: "."
-git commit: "-am 'Genesis'"
+git commit: "-am 'Genesis.'"
+
+# ============================================================================
+# Bootstrap Heroku environment
+# ============================================================================
+
+team_name_for_heroku = I18n.transliterate(team_name).downcase.strip.gsub(/\s/, '-')
+
+if ask_yes_or_no_question('Bootstrap a staging environment on Heroku')
+  file 'config/environments/staging.rb', File.read('config/environments/production.rb')
+  git add: "."
+  git commit: "-am 'Creating staging environment.'"
+
+  bootstrap_heroku_environment('staging', team_name, license_software_name)
+end
+
+if ask_yes_or_no_question('Bootstrap a production environment on Heroku')
+  bootstrap_heroku_environment('production', team_name, license_software_name)
+end
