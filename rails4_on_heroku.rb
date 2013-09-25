@@ -419,6 +419,7 @@ file 'public/crossdomain.xml', <<XML
 </cross-domain-policy>
 XML
 
+File.delete 'public/robots.txt'
 file 'public/robots.txt', <<TXT
 # http://www.robotstxt.org/
 User-agent: *
