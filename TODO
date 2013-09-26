@@ -1,7 +1,12 @@
-* heroku wakeup
+* bugfix on generated assets for heroku
 
 * heroku deflater
 ** rack cache
+* assets:sync
+** asset_host
+** rakefile
+* rack cahe
+* memcache (heroku addon also)
 
 * ask for active_admin option
 
@@ -10,11 +15,6 @@
 ** add devise localization (https://github.com/plataformatec/devise/wiki/I18n)
 
 * ask for jquery validate usage, add jquery validate and validate helpers
-* assets:sync
-** asset_host
-** rakefile
-* rack cahe
-* memcache (heroku addon also)
 * browser version warning styles
 * check base improts (sass imports)
 * add test suit (rspec or minitest, spork)
@@ -30,3 +30,4 @@
 
 * create staging environment
 * automaticaly bootstrap a heroku staging and production server
+* heroku wakeup
