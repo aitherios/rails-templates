@@ -58,12 +58,13 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
   repository_name = ask_question "Name for #{environment}", "#{team_name_for_heroku}-#{software_name_for_heroku}-#{environment}"
   repository_name = clean_for_heroku(repository_name)
 
-  heroku "create #{repository_name}"
+  heroku "create #{repository_name} --remote #{environment}"
 
   heroku_info = `heroku info -a #{repository_name}`
   heroku_domain = heroku_info.match(/(http:\/\/\S+)/)[1]
 
-  heroku "config:set APP_HOSTNAME=#{heroku_domain} WEB_CONCURRENCY=3", repository_name
+  heroku "config:set APP_HOSTNAME=#{heroku_domain} WEB_CONCURRENCY=3 RAILS_ENV=#{environment} RACK_ENV=#{environment}", repository_name
+  heroku "config:set BUILDPACK_URL='git://github.com/qnyp/heroku-buildpack-ruby-bower.git#run-bower'", repository_name
 
   if ask_yes_or_no_question('Bootstrap free Heroku addons')
     heroku "config:add NEW_RELIC_APP_NAME=#{heroku_domain}", repository_name
@@ -77,9 +78,6 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     heroku "addons:add sendgrid:starter", repository_name if ask_yes_or_no_question('Bootstrap free Heroku email addon') 
     heroku "addons:add zerigo_dns:basic", repository_name if ask_yes_or_no_question('Bootstrap free Heroku dns addon') 
   end
-
-  git_url = heroku_info.match(/(git@\S+)/)[1]
-  git remote: "add #{environment} #{git_url}"
 
   if ask_yes_or_no_question('Push to Heroku')
     git push: "#{environment} master"
@@ -404,6 +402,39 @@ file 'app/assets/stylesheets/application.sass', <<SASS
 SASS
 
 # ============================================================================
+# Bower
+# ============================================================================
+
+Dir.mkdir 'vendor/assets/bower_components'
+application do <<-'RUBY'
+
+    config.assets.paths << Rails.root.join('vendor', 'assets', 'bower_components')
+RUBY
+end
+
+file '.bowerrc', <<-'JS'
+{
+  "directory": "vendor/assets/bower_components"
+}
+JS
+
+run 'bower init'
+
+inject_into_file 'bower.json', after: "{" do <<'JS'
+  "dependencies": {
+    "modernizr": "latest",
+    "selectivizr": "latest"
+  },
+JS
+end
+
+run 'bower install'
+
+append_file '.gitignore', <<'FILE'
+vendor/assets/bower_components
+FILE
+
+# ============================================================================
 # Javascripts & Coffeescripts
 # ============================================================================
 
@@ -411,32 +442,12 @@ File.delete 'app/assets/javascripts/application.js'
 file 'app/assets/javascripts/application.coffee', <<COFFEE
 #= require jquery
 #= require jquery_ujs
-#= require modernizr
+#= require modernizr/modernizr
 COFFEE
 
 file 'app/assets/javascripts/lt_ie9.coffee', <<COFFEE
-#= require selectivizr
+#= require selectivizr/selectivizr
 COFFEE
-
-gem 'bower-rails'
-generate 'bower_rails:initialize'
-
-application do <<'RUBY'
-
-    Dir[Rails.root.join('vendor', 'assets', 'bower_components', '*' )].each do |dir|
-      config.assets.paths << File.join(dir, 'src') if File.directory?(File.join dir, 'src')
-      config.assets.paths << dir
-    end
-RUBY
-end
-
-inject_into_file 'bower.json', after: "    \"name\": \"bower-rails generated vendor assets\",\n    \"dependencies\": {\n" do <<'RUBY'
-      "selectivizr": "latest",
-      "modernizr": "latest"
-RUBY
-end
-
-rake 'bower:install'
 
 # ============================================================================
 # Slim
@@ -1427,14 +1438,14 @@ git commit: "-am 'Genesis.'"
 # Bootstrap Heroku environment
 # ============================================================================
 
-team_name_for_heroku = I18n.transliterate(team_name).downcase.strip.gsub(/\s/, '-')
-
 if ask_yes_or_no_question('Bootstrap a staging environment on Heroku')
   file 'config/environments/staging.rb', File.read('config/environments/production.rb')
   git add: "."
   git commit: "-am 'Creating staging environment.'"
 
   bootstrap_heroku_environment('staging', team_name, license_software_name)
+
+  git config: "heroku.remote staging"
 end
 
 if ask_yes_or_no_question('Bootstrap a production environment on Heroku')
