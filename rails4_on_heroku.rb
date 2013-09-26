@@ -76,6 +76,9 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     heroku "addons:add scheduler:standard", repository_name
 
     heroku "addons:add sendgrid:starter", repository_name if ask_yes_or_no_question('Bootstrap free Heroku email addon') 
+
+    # configure action mailer
+
     heroku "addons:add zerigo_dns:basic", repository_name if ask_yes_or_no_question('Bootstrap free Heroku dns addon') 
   end
 
@@ -108,6 +111,7 @@ RACK_ENV=none
 RAILS_ENV=development
 APP_HOSTNAME=localhost
 HEROKU_WAKEUP=false
+PORT=5000
 FILE
 
 file 'config/unicorn.rb', <<RUBY
@@ -214,32 +218,6 @@ application do <<RUBY
     end
 RUBY
 end
-
-# ============================================================================
-# Heroku
-# ============================================================================
-
-gem 'rails_12factor', group: :production
-
-# ============================================================================
-# Heroku Wakeup
-# ============================================================================
-
-gem 'rufus-scheduler'
-
-initializer 'heroku_wakeup.rb', <<-'RUBY'
-if ENV['HEROKU_WAKEUP'] == 'true'
-  require 'rufus/scheduler'
-  scheduler = Rufus::Scheduler.start_new
-
-  scheduler.every '10m' do
-    require "net/http"
-    require "uri"
-    url = "http://#{ENV['APP_HOSTNAME']}"
-    Net::HTTP.get_response(URI.parse(url))
-  end
-end
-RUBY
 
 # ============================================================================
 # Compass
@@ -1170,6 +1148,44 @@ end
 file '.ruby-version', <<FIN
 ruby-2.0.0-p247
 FIN
+
+# ============================================================================
+# Heroku Wakeup
+# ============================================================================
+
+gem 'rufus-scheduler'
+
+initializer 'heroku_wakeup.rb', <<-'RUBY'
+if ENV['HEROKU_WAKEUP'] == 'true'
+  require 'rufus/scheduler'
+  scheduler = Rufus::Scheduler.start_new
+
+  scheduler.every '10m' do
+    require "net/http"
+    require "uri"
+    url = "http://#{ENV['APP_HOSTNAME']}"
+    Net::HTTP.get_response(URI.parse(url))
+  end
+end
+RUBY
+
+# ============================================================================
+# Heroku
+# ============================================================================
+
+gem 'rails_12factor', group: :production
+
+gsub_file 'config/environments/production.rb', 
+          'config.serve_static_assets = false', 
+          'config.serve_static_assets = true'
+
+gsub_file 'config/environments/production.rb', 
+          '# config.assets.css_compressor = :sass', 
+          'config.assets.css_compressor = :sass'
+
+gsub_file 'config/environments/production.rb', 
+          'config.assets.compile = false', 
+          'config.assets.compile = true'
 
 # ============================================================================
 # Postgres
