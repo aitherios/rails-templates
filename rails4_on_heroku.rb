@@ -83,6 +83,12 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     git push: "#{environment} master"
     heroku "run rake db:migrate", repository_name
   end
+
+  if environment == 'production'
+    heroku "config:set HEROKU_WAKEUP=true", repository_name
+  else
+    heroku "config:set HEROKU_WAKEUP=false", repository_name
+  end
 end
 
 # ============================================================================
@@ -101,6 +107,7 @@ WEB_CONCURRENCY=1
 RACK_ENV=none
 RAILS_ENV=development
 APP_HOSTNAME=localhost
+HEROKU_WAKEUP=false
 FILE
 
 file 'config/unicorn.rb', <<RUBY
@@ -214,6 +221,26 @@ end
 # ============================================================================
 
 gem 'rails_12factor', group: :production
+
+# ============================================================================
+# Heroku Wakeup
+# ============================================================================
+
+gem 'rufus-scheduler'
+
+initializer 'heroku_wakeup.rb', <<-'RUBY'
+if ENV['HEROKU_WAKEUP'] == 'true'
+  require 'rufus/scheduler'
+  scheduler = Rufus::Scheduler.start_new
+
+  scheduler.every '10m' do
+    require "net/http"
+    require "uri"
+    url = "http://#{ENV['APP_HOSTNAME']}"
+    Net::HTTP.get_response(URI.parse(url))
+  end
+end
+RUBY
 
 # ============================================================================
 # Compass
@@ -1445,9 +1472,13 @@ if ask_yes_or_no_question('Bootstrap a staging environment on Heroku')
 
   bootstrap_heroku_environment('staging', team_name, license_software_name)
 
+  heroku 'config:set HEROKU_WAKEUP=false'
+
   git config: "heroku.remote staging"
 end
 
 if ask_yes_or_no_question('Bootstrap a production environment on Heroku')
   bootstrap_heroku_environment('production', team_name, license_software_name)
+
+  heroku 'config:set HEROKU_WAKEUP=true'
 end
