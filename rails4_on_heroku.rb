@@ -154,7 +154,6 @@ end
 # Devise
 # ============================================================================
 
-
 application do <<RUBY
 
     config.filter_parameters += [:password, :password_confirmation]    
@@ -433,6 +432,8 @@ SASS
 # ============================================================================
 
 Dir.mkdir 'vendor/assets/bower_components'
+file 'vendor/assets/bower_components/.keep', ''
+
 application do <<-'RUBY'
 
     config.assets.paths << Rails.root.join('vendor', 'assets', 'bower_components')
@@ -458,7 +459,7 @@ end
 run 'bower install'
 
 append_file '.gitignore', <<'FILE'
-vendor/assets/bower_components
+vendor/assets/bower_components/*
 FILE
 
 # ============================================================================
