@@ -27,16 +27,16 @@ end
 def ask_question question, fallback = ''
   result = ''
   if fallback.empty?
-    result = ask "    \033[1;32masking\033[0m    #{question}?"
+    result = ask "    \033[1;34manswer\033[0m    #{question}?"
   else
-    result = ask "    \033[1;32masking\033[0m    #{question} (press enter for #{fallback})?"
+    result = ask "    \033[1;34manswer\033[0m    #{question} (press enter for #{fallback})?"
     result = result.empty? ? fallback : result
   end
   result
 end
 
 def ask_yes_or_no_question question
-  yes? "    \033[1;32masking\033[0m    #{question}?"
+  yes? "    \033[1;34manswer\033[0m    #{question}?"
 end
 
 def heroku command, repository = ''
@@ -60,8 +60,7 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
 
   heroku "create #{repository_name} --remote #{environment}"
 
-  heroku_info = `heroku info -a #{repository_name}`
-  heroku_domain = heroku_info.match(/(http:\/\/\S+)/)[1]
+  heroku_domain = `heroku domains --remote #{environment} | grep heroku`.strip
 
   heroku "config:set APP_HOSTNAME=#{heroku_domain} WEB_CONCURRENCY=3 RAILS_ENV=#{environment} RACK_ENV=#{environment}", repository_name
   heroku "config:set BUILDPACK_URL='git://github.com/qnyp/heroku-buildpack-ruby-bower.git#run-bower'", repository_name
@@ -1170,10 +1169,25 @@ end
 RUBY
 
 # ============================================================================
+# Heroku Deflate
+# ============================================================================
+
+gem 'heroku_rails_deflate', group: :production
+gem 'heroku_rails_deflate', group: :staging
+
+application(nil, env: :production) do <<-'RUBY'
+
+  config.static_cache_control = "public, max-age=31536000"
+  config.asset_host = "//#{ENV['APP_HOSTNAME']}"
+RUBY
+end
+
+# ============================================================================
 # Heroku
 # ============================================================================
 
 gem 'rails_12factor', group: :production
+gem 'rails_12factor', group: :staging
 
 gsub_file 'config/environments/production.rb', 
           'config.serve_static_assets = false', 

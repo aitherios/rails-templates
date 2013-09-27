@@ -1,5 +1,3 @@
-* bugfix on generated assets for heroku
-
 * heroku deflater
 ** rack cache
 * assets:sync
@@ -31,3 +29,4 @@
 * create staging environment
 * automaticaly bootstrap a heroku staging and production server
 * heroku wakeup
+* bugfix on generated assets for heroku ( yui failed =[ )
