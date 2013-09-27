@@ -1241,10 +1241,12 @@ test: &test
   password: #{database_password}
   pool: 5
   timeout: 5000
+
 YML
 
-rake 'db:create:all'
-rake 'db:migrate'
+rake 'RAILS_ENV=test        db:create'
+rake 'RAILS_ENV=development db:create'
+rake 'RAILS_ENV=development db:migrate'
 
 # ============================================================================
 # License
@@ -1506,6 +1508,17 @@ if ask_yes_or_no_question('Bootstrap a staging environment on Heroku')
   heroku 'config:set HEROKU_WAKEUP=false'
 
   git config: "heroku.remote staging"
+
+  append_file 'config/database.yml', <<-YML
+staging:
+  adapter: postgresql
+  encoding: unicode
+  database: #{database_prefix}_staging
+  username: #{database_username}
+  password: #{database_password}
+  pool: 5
+  timeout: 5000
+  YML
 end
 
 if ask_yes_or_no_question('Bootstrap a production environment on Heroku')
