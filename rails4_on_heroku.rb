@@ -81,16 +81,26 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     heroku "addons:add zerigo_dns:basic", repository_name if ask_yes_or_no_question('Bootstrap free Heroku dns addon') 
   end
 
-  if ask_yes_or_no_question('Push to Heroku')
-    git push: "#{environment} master"
-    heroku "run rake db:migrate", repository_name
-  end
-
   if environment == 'production'
     heroku "config:set HEROKU_WAKEUP=true", repository_name
   else
     heroku "config:set HEROKU_WAKEUP=false", repository_name
   end
+
+  application(nil, env: environment) do <<-RUBY
+
+  config.asset_host = "http://#{heroku_domain}"
+  RUBY
+  end
+
+  git add: "."
+  git commit: "-am 'Adding Heroku domain as asset host.'"
+
+  if ask_yes_or_no_question('Push to Heroku')
+    git push: "#{environment} master"
+    heroku "run rake db:migrate", repository_name
+  end
+
 end
 
 # ============================================================================
@@ -596,16 +606,16 @@ meta name="description" content="#{content_for?(:description) ? yield(:descripti
 meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0"
 
 // opengraph metatags
-meta property="og:image" content="http://#{ENV['APP_HOSTNAME']}/og-image.png"
+meta property="og:image" content="#{asset_url('og-image.png')}"
 meta property="og:type" content="website"
-meta property="og:url" content="http://#{ENV['APP_HOSTNAME']}"
+meta property="og:url" content="#{root_url}"
 meta property="og:title" content="#{content_for?(:title) ? yield(:title).to_s + '— ' : ''}#{Rails.application.class.parent_name}"
 meta property="og:description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
 meta property="og:locale" content="pt_BR"
 // meta property="fb:admins" content="#admin-id" 
 
 // humans.txt
-link rel="author" href="/humans.txt"
+link rel="author" href="#{asset_url('humans.txt')}"
 SLIM
 
 gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_NAME', team_name
@@ -1178,7 +1188,6 @@ gem 'heroku_rails_deflate', group: :staging
 application(nil, env: :production) do <<-'RUBY'
 
   config.static_cache_control = "public, max-age=31536000"
-  config.asset_host = "//#{ENV['APP_HOSTNAME']}"
 RUBY
 end
 
@@ -1499,15 +1508,8 @@ git commit: "-am 'Genesis.'"
 # ============================================================================
 
 if ask_yes_or_no_question('Bootstrap a staging environment on Heroku')
+
   file 'config/environments/staging.rb', File.read('config/environments/production.rb')
-  git add: "."
-  git commit: "-am 'Creating staging environment.'"
-
-  bootstrap_heroku_environment('staging', team_name, license_software_name)
-
-  heroku 'config:set HEROKU_WAKEUP=false'
-
-  git config: "heroku.remote staging"
 
   append_file 'config/database.yml', <<-YML
 staging:
@@ -1519,6 +1521,15 @@ staging:
   pool: 5
   timeout: 5000
   YML
+
+  git add: "."
+  git commit: "-am 'Creating staging environment.'"
+
+  bootstrap_heroku_environment('staging', team_name, license_software_name)
+
+  heroku 'config:set HEROKU_WAKEUP=false'
+
+  git config: "heroku.remote staging"
 end
 
 if ask_yes_or_no_question('Bootstrap a production environment on Heroku')
