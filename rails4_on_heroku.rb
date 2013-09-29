@@ -70,8 +70,9 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     heroku "addons:add newrelic:standard", repository_name
     heroku "addons:add heroku-postgresql:dev", repository_name
     heroku "addons:add pgbackups:auto-month", repository_name
-    heroku "addons:add sentry:developer", repository_name
+    heroku "addons:add memcachier:dev", repository_name
     heroku "addons:add papertrail:choklad", repository_name
+    heroku "addons:add sentry:developer", repository_name
     heroku "addons:add scheduler:standard", repository_name
 
     heroku "addons:add sendgrid:starter", repository_name if ask_yes_or_no_question('Bootstrap free Heroku email addon') 
@@ -584,7 +585,7 @@ html.no-js lang="#{I18n.locale}"
     == render 'layouts/metatags'
     == render 'layouts/favicons'
 
-    == csrf_meta_tags
+    == csrf_meta_tags unless response.cache_control[:public]
     == stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track' => true
     == javascript_include_tag 'application', 'data-turbolinks-track' => true
     /[if lt IE 9]
@@ -1219,6 +1220,32 @@ gem 'lograge'
 application(nil, env: :production) do <<-'RUBY'
 
   config.lograge.enabled = true
+RUBY
+end
+
+# ============================================================================
+# Rack::Cache && Memcache
+# ============================================================================
+
+gem "rack-cache"
+gem "dalli"
+gem "kgio"
+gem "memcachier", group: :production
+gem "memcachier", group: :staging
+
+application(nil, env: :production) do <<-'RUBY'
+
+  config.cache_store = :mem_cache_store, ENV["MEMCACHIER_SERVERS"],
+                       { username: ENV["MEMCACHIER_USERNAME"],
+                         password: ENV["MEMCACHIER_PASSWORD"]}
+
+  client = Dalli::Client.new(ENV["MEMCACHIER_SERVERS"], value_max_bytes: 10485760)
+
+  config.action_dispatch.rack_cache = {
+    metastore: client,
+    entitystore: client,
+    allow_reload: false
+  }
 RUBY
 end
 

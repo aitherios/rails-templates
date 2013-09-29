@@ -1,13 +1,3 @@
-* log registry performance improvements (read papertrail article)
-
-* heroku deflater
-** rack cache
-* assets:sync
-** asset_host
-** rakefile
-* rack cahe
-* memcache (heroku addon also)
-
 * zoom css javascript solution
 
 * ask for active_admin option
@@ -34,3 +24,7 @@
 * automaticaly bootstrap a heroku staging and production server
 * heroku wakeup
 * bugfix on generated assets for heroku ( yui failed =[ )
+* log registry performance improvements (read papertrail article)
+* heroku deflater
+** rack cache
+* memcache (heroku addon also)
