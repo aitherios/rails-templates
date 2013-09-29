@@ -465,6 +465,18 @@ file 'app/assets/javascripts/lt_ie9.coffee', <<COFFEE
 #= require selectivizr/selectivizr
 COFFEE
 
+file 'app/assets/javascripts/viewport.coffee', <<'COFFEE'
+$ ->
+  iphone = 'user-scalable=yes, width=980, initial-scale=0.33'
+  ipad = 'user-scalable=yes, width=980, initial-scale=0.75'
+
+  switch
+    when ($ window).width() <= 400
+      $('meta[name=viewport]').attr('content', iphone)
+    when ($ window).width() <= 800
+      $('meta[name=viewport]').attr('content', ipad)
+COFFEE
+
 # ============================================================================
 # Slim
 # ============================================================================
