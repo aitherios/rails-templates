@@ -8,7 +8,8 @@ def download file, output_path
 
   file_name = file =~ /^http/ ? /[^\/]+$/.match(file)[0] : file
   file_url = file =~ /^http/ ? file : "#{assets_path}/#{file_name}"
-  output_file = "#{output_path}/#{file_name}"
+
+  output_file = output_path =~ /[^\/]+\.[^\/]+\s*$/ ? output_path : "#{output_path}/#{file_name}"
 
   puts "    \033[1;32mdownload\033[0m    #{output_file}"
 
@@ -193,7 +194,9 @@ en:
       <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.
 YML
 
-if ask_yes_or_no_question "Change locale to pt-BR and time zone to Brazil's official time"
+pt_BR = ask_yes_or_no_question("Change locale to pt-BR and time zone to Brazil's official time")
+
+if pt_BR
   application do <<-'RUBY'
 
     config.i18n.default_locale = 'pt-BR'
@@ -212,6 +215,21 @@ pt-BR:
       <a href="http://www.google.com/chromeframe/?redirect=true">ative o Google Chrome Frame</a> para melhorar a sua experiência.
   YML
 end
+
+gsub_file 'app/controllers/application_controller.rb', /end\s*$/ ,<<-'RUBY'
+
+  protected
+
+  def set_locale
+    I18n.locale = params[:locale] || I18n.default_locale
+  end
+
+  def render_not_found
+    render file: 'public/404.html', status: 404, layout: false      
+  end
+end
+RUBY
+
 
 # ============================================================================
 # Pry
@@ -477,6 +495,14 @@ $ ->
       $('meta[name=viewport]').attr('content', ipad)
 COFFEE
 
+application(nil, env: :production) do <<-'RUBY'
+
+  config.assets.precompile += %w(
+    lt_ie9.js
+  )
+RUBY
+end
+
 # ============================================================================
 # Slim
 # ============================================================================
@@ -674,14 +700,14 @@ SLIM
 
 file 'app/controllers/pages_controller.rb', <<'RUBY'
 class PagesController < ApplicationController
-  def index; end
-
   def show
-    if template_exists?("pages/#{params[:slug]}")
-      render "pages/#{params[:slug]}" 
-    else
-      render file: "public/404.html", status: 404, layout: false      
-    end
+    render_page_template or render_not_found    
+  end
+
+  private
+  
+  def render_page_template
+    render "pages/#{params[:slug]}" if template_exists?("pages/#{params[:slug]}")
   end
 end
 RUBY
@@ -1150,13 +1176,197 @@ route "get 'frontend/:template' => 'frontend#show'"
 route "get 'frontend'           => 'frontend#index'"
 
 # ============================================================================
+# Active Admin
+# ============================================================================
+
+if active_admin = ask_yes_or_no_question('Install admin panel (via ActiveAdmin)')
+  gem 'activeadmin', github: 'gregbell/active_admin'
+  run 'bundle'
+  generate 'active_admin:install'
+
+  File.rename 'app/assets/javascripts/active_admin.js.coffee', 'app/assets/javascripts/active_admin.coffee'
+  gsub_file 'app/assets/stylesheets/active_admin.css.scss', ';', ''
+  File.rename 'app/assets/stylesheets/active_admin.css.scss', 'app/assets/stylesheets/active_admin.sass'
+
+  inject_into_file 'config/environments/production.rb', after: "  config.assets.precompile += %w(\n" do <<-'RUBY'
+    active_admin.js 
+    active_admin.css 
+  RUBY
+  end
+  
+  inject_into_file 'config/initializers/active_admin.rb', after: "ActiveAdmin.setup do |config|\n" do <<-'RUBY'
+  config.before_filter :set_locale
+  RUBY
+  end
+
+  file 'config/locales/active_admin.en.yml', <<-'FILE'
+en:
+  active_admin:
+    dashboard_welcome:
+      welcome: 'Welcome to the Admin Panel.'
+      call_to_action: 'Use the navigation menu to edit this application.'
+  FILE
+
+  if pt_BR
+    download 'https://gist.github.com/cerdiogenes/6503790/raw/6c30f6bace4767823807c211544bb7462def72cc/Rails+I18n%3A+devise.pt-BR.yml',
+             'config/locales/devise.pt-BR.yml'
+
+    file 'config/locales/active_admin.pt-BR.yml', <<-'FILE'
+pt-BR:
+  active_admin:
+    dashboard_welcome:
+      welcome: 'Bem vindo ao Painel de Administração.'
+      call_to_action: 'Utilize o menu de navegação para editar esta aplicação.'
+    comments:
+      author_id: Id do autor
+      author_type: Tipo do autor
+      resource_id: Id do recurso
+      resource_type: Tipo do recurso
+      namespace: Namespace
+      body: Mensagem
+      resource: Recurso
+      author: Autor
+      created_at: Criado em
+      updated_at: Atualizado em
+  activerecord:
+    models:
+      admin_user: Administrador(es)
+      comment: Comentário(s)
+    attributes:
+      admin_user:
+        email: Email
+        password: Senha
+        encrypted_password: Senha criptografada
+        password_confirmation: Confirmação da senha
+        reset_password_token: Token de reset de senha
+        reset_password_sent_at: Reset de senha enviado em
+        remember_created_at: Lembre-se de mim criado em
+        sign_in_count: Número de logins
+        current_sign_in_at: Login atual em
+        last_sign_in_at: Login anterior em
+        current_sign_in_ip: IP registrado atual
+        last_sign_in_ip: IP registrado anterior
+        created_at: Criado em
+        updated_at: Atualizado em
+    FILE
+  end
+  
+end
+
+# ============================================================================
+# Devise
+# ============================================================================
+
+if ask_yes_or_no_question 'Install authentication (via Devise)'
+
+  generate 'devise:views'
+  generate 'devise user'
+
+  if active_admin
+    file 'app/admin/user.rb', <<-'RUBY'
+ActiveAdmin.register User do
+  index do
+    column :email
+    column :current_sign_in_at
+    column :last_sign_in_at
+    column :sign_in_count
+    default_actions
+  end
+
+  filter :email
+
+  form do |f|
+    f.inputs do
+      f.input :email
+      f.input :password
+      f.input :password_confirmation
+    end
+    f.actions
+  end
+
+  controller do
+    def permitted_params
+      params.permit user: [:email, :password, :password_confirmation]
+    end
+  end
+end
+    RUBY
+
+    if pt_BR
+      file 'config/locales/user_model.pt-BR.yml', <<-'YML'
+pt-BR:
+  activerecord:
+    models:
+      user: Usuário(s)
+    attributes:
+      user:
+        email: Email
+        password: Senha
+        encrypted_password: Senha criptografada
+        password_confirmation: Confirmação da senha
+        reset_password_token: Token de reset de senha
+        reset_password_sent_at: Reset de senha enviado em
+        remember_created_at: Lembre-se de mim criado em
+        sign_in_count: Número de logins
+        current_sign_in_at: Login atual em
+        last_sign_in_at: Login anterior em
+        current_sign_in_ip: IP registrado atual
+        last_sign_in_ip: IP registrado anterior
+        created_at: Criado em
+        updated_at: Atualizado em
+      YML
+    end
+  else
+    gem 'devise'
+    generate 'devise:install'
+
+    if pt_BR
+      download 'https://gist.github.com/cerdiogenes/6503790/raw/6c30f6bace4767823807c211544bb7462def72cc/Rails+I18n%3A+devise.pt-BR.yml',
+               'config/locales/devise.pt-BR.yml'
+    end
+  end
+
+  inject_into_file 'app/controllers/application_controller.rb', after: "ActionController::Base\n" do <<-'RUBY'
+  after_filter :store_location
+  RUBY
+  end
+
+  inject_into_file 'app/controllers/application_controller.rb', after: "protected\n" do <<-'RUBY'
+
+  def store_location
+    devise_locations = [ new_user_session_path,
+                         destroy_user_session_path,
+                         new_user_registration_path,
+                         user_password_path ]
+
+    if (!devise_locations.include?(request.fullpath) && !request.xhr?)
+      session[:user_return_to] = request.fullpath 
+    end
+  end
+
+  def after_sign_out_path_for(resource_or_scope)
+    request.referrer
+  end
+
+  def only_for_signed_in_users
+    redirect_to new_user_registration_url unless user_signed_in?
+  end
+
+  RUBY
+  end
+end
+
+# ============================================================================
 # Formtastic
 # ============================================================================
 
-if ask_yes_or_no_question 'Install formtastic'
-  gem 'formtastic'
-  generate 'formtastic:install'
+unless active_admin
+  if ask_yes_or_no_question 'Install form builder (via Formtastic)'
+    gem 'formtastic'
+    generate 'formtastic:install'
+  end
 end
+
 
 # ============================================================================
 # rvm, ruby 2.0
@@ -1304,9 +1514,9 @@ test: &test
 
 YML
 
-rake 'RAILS_ENV=test        db:create'
-rake 'RAILS_ENV=development db:create'
-rake 'RAILS_ENV=development db:migrate'
+rake 'db:drop'
+rake 'db:create'
+rake 'db:migrate'
 
 # ============================================================================
 # License

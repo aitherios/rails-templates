@@ -1,20 +1,27 @@
-* ask for active_admin option
 
-* ask for devise
 ** ask for devise google, twitter, facebook integration
 ** add devise localization (https://github.com/plataformatec/devise/wiki/I18n)
 
 * ask for jquery validate usage, add jquery validate and validate helpers
 * browser version warning styles
-* check base improts (sass imports)
+
 * add test suit (rspec or minitest, spork)
 * add auto test
+
+* livereload (tests and visual)
+
+* default contact form 
+
+* email boilerplate
 
 * ADD IF for support for (>= IE8) or (>= IE9)
 ** jquery choice
 ** less than IE javascript
 
 * check refinerycms
+
+* ckeditor live edit (kind of mercury reimplementation)
+** span generator with cache
 
 == OK!
 
@@ -27,3 +34,5 @@
 ** rack cache
 * memcache (heroku addon also)
 * zoom css javascript solution
+* ask for active_admin option
+* ask for devise
