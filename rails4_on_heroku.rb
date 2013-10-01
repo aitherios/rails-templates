@@ -96,7 +96,7 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     heroku "addons:add sentry:developer", repository_name
     heroku "addons:add scheduler:standard", repository_name
 
-    if ask_yes_or_no_question('Bootstrap free Heroku email addon') 
+    if ask_yes_or_no_question('Bootstrap free Heroku email addon')
       heroku "addons:add sendgrid:starter", repository_name
       create_sendgrid_initializer
     end
@@ -125,6 +125,15 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
   end
 
 end
+
+# ============================================================================
+# Information
+# ============================================================================
+
+team_name = ask_question 'Team name'
+team_email = ask_question 'Team email'
+team_url = ask_question 'Team full url'
+styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_name
 
 # ============================================================================
 # Unicorn + Foreman
@@ -163,7 +172,7 @@ before_fork do |server, worker|
     Resque.redis.quit
     Rails.logger.info('Disconnected from Redis')
   end
-end 
+end
 
 after_fork do |server, worker|
   Signal.trap 'TERM' do
@@ -481,11 +490,16 @@ JS
 
 run 'bower init'
 
-inject_into_file 'bower.json', after: "{" do <<'JS'
+inject_into_file 'bower.json', after: "{" do <<-'JS'
   "dependencies": {
     "modernizr": "latest",
     "selectivizr": "latest"
   },
+JS
+end
+
+inject_into_file 'bower.json', after: "\"authors\": [\n" do <<-JS
+    "#{team_name} <#{team_email}>",
 JS
 end
 
@@ -578,9 +592,6 @@ User-agent: *
 Disallow:
 TXT
 
-team_name = ask_question 'Team name'
-team_url = ask_question 'Team full url'
-styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_name
 file 'public/humans.txt', <<TXT
 #{styled_team_name}
 
@@ -593,6 +604,7 @@ TEAM
 
 This site was hand-crafted by #{team_name}
 #{team_url}
+#{team_email}
 
 _______________________________________________________________________________
 TECHNOLOGY
@@ -631,7 +643,7 @@ TXT
 
 File.delete 'app/views/layouts/application.html.erb'
 
-file 'app/views/layouts/application.slim', <<'SLIM'
+file 'app/views/layouts/application.slim', <<-'SLIM'
 doctype html
 
 /[if lt IE 7]
