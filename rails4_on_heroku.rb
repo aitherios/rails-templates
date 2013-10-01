@@ -48,6 +48,26 @@ def heroku command, repository = ''
   end
 end
 
+def create_sendgrid_initializer
+  unless File.exists?('config/initializers/mail.rb')
+    initializer 'mail.rb', <<-'RUBY'
+ActionMailer::Base.smtp_settings = {
+  address:              'smtp.sendgrid.net',
+  port:                 '587',
+  authentication:       :plain,
+  user_name:            ENV['SENDGRID_USERNAME'],
+  password:             ENV['SENDGRID_PASSWORD'],
+  domain:               ENV['APP_HOSTNAME'],
+  enable_starttls_auto: true
+}
+ActionMailer::Base.delivery_method = :smtp
+    RUBY
+
+    git add: "."
+    git commit: "-am 'Sendgrid configuration initializer.'"
+  end
+end
+
 def bootstrap_heroku_environment environment, team_name = nil, software_name = nil
   team_name = ask_question 'Team name' if team_name.nil?
   team_name_for_heroku = clean_for_heroku(team_name)
@@ -76,11 +96,12 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     heroku "addons:add sentry:developer", repository_name
     heroku "addons:add scheduler:standard", repository_name
 
-    heroku "addons:add sendgrid:starter", repository_name if ask_yes_or_no_question('Bootstrap free Heroku email addon') 
+    if ask_yes_or_no_question('Bootstrap free Heroku email addon') 
+      heroku "addons:add sendgrid:starter", repository_name
+      create_sendgrid_initializer
+    end
 
-    # configure action mailer
-
-    heroku "addons:add zerigo_dns:basic", repository_name if ask_yes_or_no_question('Bootstrap free Heroku dns addon') 
+    heroku "addons:add zerigo_dns:basic", repository_name if ask_yes_or_no_question('Bootstrap free Heroku dns addon')
   end
 
   if environment == 'production'
@@ -96,7 +117,7 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
   end
 
   git add: "."
-  git commit: "-am 'Adding Heroku domain as asset host.'"
+  git commit: "-am 'Heroku as asset host on #{environment} environment.'"
 
   if ask_yes_or_no_question('Push to Heroku')
     git push: "#{environment} master"
@@ -126,7 +147,7 @@ PORT=5000
 FILE
 
 file 'config/unicorn.rb', <<RUBY
-worker_processes Integer(ENV["WEB_CONCURRENCY"] || 5)
+worker_processes Integer(ENV["WEB_CONCURRENCY"] || 3)
 ENV['RAILS_ENV'] == 'development' ? timeout(90) : timeout(15)
 preload_app true
 
@@ -166,12 +187,18 @@ RUBY
 end
 
 # ============================================================================
-# Devise
+# Action Mailer
 # ============================================================================
 
-application do <<RUBY
+application(nil, env: :development) do <<-'RUBY'
 
-    config.filter_parameters += [:password, :password_confirmation]    
+  config.action_mailer.default_url_options = { host: 'localhost:5000' }
+RUBY
+end
+
+application(nil, env: :production) do <<-'RUBY'
+
+  config.action_mailer.default_url_options = { host: ENV['APP_HOSTNAME'] }
 RUBY
 end
 
@@ -179,7 +206,7 @@ end
 # Locales
 # ============================================================================
 
-application do <<RUBY
+application do <<-'RUBY'
 
     config.i18n.load_path += Dir[Rails.root.join('config', 'locales', '**/*.{rb,yml}').to_s]
 RUBY
@@ -202,7 +229,7 @@ if pt_BR
     config.i18n.default_locale = 'pt-BR'
     config.time_zone = 'Brasilia'
   RUBY
-  end  
+  end
 
   download 'https://github.com/svenfuchs/rails-i18n/raw/master/rails/locale/pt-BR.yml', 'config/locales'
 
@@ -225,7 +252,7 @@ gsub_file 'app/controllers/application_controller.rb', /end\s*$/ ,<<-'RUBY'
   end
 
   def render_not_found
-    render file: 'public/404.html', status: 404, layout: false      
+    render file: 'public/404.html', status: 404, layout: false
   end
 end
 RUBY
@@ -273,7 +300,7 @@ file 'app/assets/stylesheets/base/_all.sass', <<SASS
 
 // COMPASS
 // tollkit includes: compass, color-schemer and breakpoint
-@import "toolkit" 
+@import "toolkit"
 @import "singularitygs"
 @import "singularity-extras"
 @import "normalize"
@@ -361,7 +388,7 @@ file 'app/assets/stylesheets/base/_mixins.sass', <<'SASS'
 =background-2x($background, $file: 'png')
   $image: #{$background+"."+$file}
   $image2x: #{$background+"@2x."+$file}
-  
+
   background: image-url($image) no-repeat
   @media (min--moz-device-pixel-ratio: 1.3),(-o-min-device-pixel-ratio: 2.6/2),(-webkit-min-device-pixel-ratio: 1.3),(min-device-pixel-ratio: 1.3),(min-resolution: 1.3dppx)
     background-image: image-url($image2x)
@@ -557,7 +584,7 @@ styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_
 file 'public/humans.txt', <<TXT
 #{styled_team_name}
 
-The humans.txt file explains the team, technology, 
+The humans.txt file explains the team, technology,
 and creative assets behind this site.
 http://humanstxt.org
 
@@ -677,8 +704,8 @@ file 'app/views/layouts/_favicons.slim', <<'SLIM'
 == favicon_link_tag '/favicon.ico'
 SLIM
 
-[ 'favicon.png', 
-  'favicon.ico', 
+[ 'favicon.png',
+  'favicon.ico',
   'apple-touch-icon-144x144-precomposed.png',
   'apple-touch-icon-114x114-precomposed.png',
   'apple-touch-icon-72x72-precomposed.png',
@@ -701,11 +728,11 @@ SLIM
 file 'app/controllers/pages_controller.rb', <<'RUBY'
 class PagesController < ApplicationController
   def show
-    render_page_template or render_not_found    
+    render_page_template or render_not_found
   end
 
   private
-  
+
   def render_page_template
     render "pages/#{params[:slug]}" if template_exists?("pages/#{params[:slug]}")
   end
@@ -735,7 +762,7 @@ file 'app/views/frontend/index.slim', <<SLIM
   ul
     - @entries.each do |entry|
       li = link_to entry, frontend_path(entry.gsub(/(.html)?\.\w+$/, ''))
-    
+
 h1 Comparison Sheet:
 
 section.page
@@ -776,16 +803,16 @@ section.page
     p hidden=true This should be hidden in all browsers, apart from IE6
     p
       ' Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. 
-        Aenean massa. Cum sociis natoque penatibus et m. 
+        Aenean massa. Cum sociis natoque penatibus et m.
         Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. 
-        Aenean massa. Cum sociis natoque penatibus et m. 
+        Aenean massa. Cum sociis natoque penatibus et m.
         Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. 
         Aenean massa. Cum sociis natoque penatibus et m.
     p
       ' Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. 
-        Aenean massa. Cum sociis natoque penatibus et m. 
+        Aenean massa. Cum sociis natoque penatibus et m.
         Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. 
-        Aenean massa. Cum sociis natoque penatibus et m. 
+        Aenean massa. Cum sociis natoque penatibus et m.
         Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. 
         Aenean massa. Cum sociis natoque penatibus et m.
     address Address somewhere, world
@@ -1189,11 +1216,11 @@ if active_admin = ask_yes_or_no_question('Install admin panel (via ActiveAdmin)'
   File.rename 'app/assets/stylesheets/active_admin.css.scss', 'app/assets/stylesheets/active_admin.sass'
 
   inject_into_file 'config/environments/production.rb', after: "  config.assets.precompile += %w(\n" do <<-'RUBY'
-    active_admin.js 
-    active_admin.css 
+    active_admin.js
+    active_admin.css
   RUBY
   end
-  
+
   inject_into_file 'config/initializers/active_admin.rb', after: "ActiveAdmin.setup do |config|\n" do <<-'RUBY'
   config.before_filter :set_locale
   RUBY
@@ -1250,7 +1277,7 @@ pt-BR:
         updated_at: Atualizado em
     FILE
   end
-  
+
 end
 
 # ============================================================================
@@ -1261,6 +1288,12 @@ if ask_yes_or_no_question 'Install authentication (via Devise)'
 
   generate 'devise:views'
   generate 'devise user'
+
+  application do <<-'RUBY'
+
+    config.filter_parameters += [:password, :password_confirmation]
+  RUBY
+  end
 
   if active_admin
     file 'app/admin/user.rb', <<-'RUBY'
@@ -1340,7 +1373,7 @@ pt-BR:
                          user_password_path ]
 
     if (!devise_locations.include?(request.fullpath) && !request.xhr?)
-      session[:user_return_to] = request.fullpath 
+      session[:user_return_to] = request.fullpath
     end
   end
 
@@ -1421,16 +1454,16 @@ end
 gem 'rails_12factor', group: :production
 gem 'rails_12factor', group: :staging
 
-gsub_file 'config/environments/production.rb', 
-          'config.serve_static_assets = false', 
+gsub_file 'config/environments/production.rb',
+          'config.serve_static_assets = false',
           'config.serve_static_assets = true'
 
-gsub_file 'config/environments/production.rb', 
-          '# config.assets.css_compressor = :sass', 
+gsub_file 'config/environments/production.rb',
+          '# config.assets.css_compressor = :sass',
           'config.assets.css_compressor = :sass'
 
-gsub_file 'config/environments/production.rb', 
-          'config.assets.compile = false', 
+gsub_file 'config/environments/production.rb',
+          'config.assets.compile = false',
           'config.assets.compile = true'
 
 # ============================================================================
@@ -1797,3 +1830,16 @@ if ask_yes_or_no_question('Bootstrap a production environment on Heroku')
 
   heroku 'config:set HEROKU_WAKEUP=true'
 end
+
+# ============================================================================
+# Database.yml
+# ============================================================================
+
+append_file '.gitignore', <<'FILE'
+
+# Rails database.yml
+config/database.yml
+FILE
+
+git add: "."
+git commit: "-am 'Ignoring database.yml, leaving default commited.'"
