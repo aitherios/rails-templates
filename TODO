@@ -1,3 +1,12 @@
+* questions on top
+
+* admin ckeditor
+
+* default contact form 
+
+* www redirect
+
+* cache partials
 
 ** ask for devise google, twitter, facebook integration
 ** add devise localization (https://github.com/plataformatec/devise/wiki/I18n)
@@ -7,10 +16,8 @@
 
 * add test suit (rspec or minitest, spork)
 * add auto test
-
-* livereload (tests and visual)
-
-* default contact form 
+* check spring instead of spork
+* guard-rspec (with spring support)
 
 * email boilerplate
 
@@ -36,3 +43,4 @@
 * zoom css javascript solution
 * ask for active_admin option
 * ask for devise
+* livereload (tests and visual)

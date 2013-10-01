@@ -13,7 +13,12 @@ def download file, output_path
 
   puts "    \033[1;32mdownload\033[0m    #{output_file}"
 
-  File.open("#{output_file}", 'wb') { |f| f.write open("#{file_url}").read }
+  case
+  when command?('aria2c'); run("aria2c -o #{output_file} #{file_url}")
+  when command?('curl'); run("curl -o #{output_file} #{file_url}")
+  when command?('wget'); run("wget -O #{output_file} #{file_url}")
+  else File.open("#{output_file}", 'wb') { |f| f.write open("#{file_url}").read }
+  end
 end
 
 def command?(name)
@@ -30,7 +35,7 @@ def ask_question question, fallback = ''
   if fallback.empty?
     result = ask "    \033[1;34manswer\033[0m    #{question}?"
   else
-    result = ask "    \033[1;34manswer\033[0m    #{question} (press enter for #{fallback})?"
+    result = ask "    \033[1;34manswer\033[0m    #{question} (#{fallback})?"
     result = result.empty? ? fallback : result
   end
   result
@@ -38,6 +43,10 @@ end
 
 def ask_yes_or_no_question question
   yes? "    \033[1;34manswer\033[0m    #{question}?"
+end
+
+def warn message
+  puts "      \033[1;33mwarn\033[0m      #{message}"
 end
 
 def heroku command, repository = ''
@@ -68,16 +77,41 @@ ActionMailer::Base.delivery_method = :smtp
   end
 end
 
-def bootstrap_heroku_environment environment, team_name = nil, software_name = nil
-  team_name = ask_question 'Team name' if team_name.nil?
+def check_heroku_repository_name name
+  allowed_characters = name =~ /^[a-z][a-z0-9-]+$/
+  size = name.length <= 30
+  warn "Name must start with a letter and can only contain lowercase letters, numbers, and dashes." unless allowed_characters
+  warn "Name is too long (maximum is 30 characters)" unless size
+  size && allowed_characters
+end
+
+def options_for_heroku_bootstrap_environment environment, team_name, software_name
+  options = {}
+
   team_name_for_heroku = clean_for_heroku(team_name)
   team_name_for_heroku = "r#{team_name_for_heroku}" if team_name_for_heroku =~ /^\d/
 
-  software_name = ask_question 'Software name' if software_name.nil?
+  software_name = ask_question "Software name" if software_name.nil?
   software_name_for_heroku = clean_for_heroku(software_name)
 
-  repository_name = ask_question "Name for #{environment}", "#{team_name_for_heroku}-#{software_name_for_heroku}-#{environment}"
-  repository_name = clean_for_heroku(repository_name)
+  repository_name = clean_for_heroku("#{team_name_for_heroku}-#{software_name_for_heroku}-#{environment}")
+  begin
+    repository_name = ask_question "Name for #{environment}", repository_name
+  end until check_heroku_repository_name(repository_name)
+
+  options[:repository_name] = repository_name
+
+  options[:free_addons] = ask_yes_or_no_question("Bootstrap free Heroku addons for #{environment}")
+  options[:sendgrid] = ask_yes_or_no_question("Bootstrap free Heroku email addon for #{environment}")
+  options[:zerigo] = ask_yes_or_no_question("Bootstrap free Heroku dns addon for #{environment}")
+
+  options[:push] = ask_yes_or_no_question("Push #{environment} to Heroku")
+
+  options
+end
+
+def bootstrap_heroku_environment environment, options
+  repository_name = options[:repository_name]
 
   heroku "create #{repository_name} --remote #{environment}"
 
@@ -86,7 +120,7 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
   heroku "config:set APP_HOSTNAME=#{heroku_domain} WEB_CONCURRENCY=3 RAILS_ENV=#{environment} RACK_ENV=#{environment}", repository_name
   heroku "config:set BUILDPACK_URL='git://github.com/qnyp/heroku-buildpack-ruby-bower.git#run-bower'", repository_name
 
-  if ask_yes_or_no_question('Bootstrap free Heroku addons')
+  if options[:free_addons]
     heroku "config:add NEW_RELIC_APP_NAME=#{heroku_domain}", repository_name
     heroku "addons:add newrelic:standard", repository_name
     heroku "addons:add heroku-postgresql:dev", repository_name
@@ -96,12 +130,12 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
     heroku "addons:add sentry:developer", repository_name
     heroku "addons:add scheduler:standard", repository_name
 
-    if ask_yes_or_no_question('Bootstrap free Heroku email addon')
+    if options[:sendgrid]
       heroku "addons:add sendgrid:starter", repository_name
       create_sendgrid_initializer
     end
 
-    heroku "addons:add zerigo_dns:basic", repository_name if ask_yes_or_no_question('Bootstrap free Heroku dns addon')
+    heroku "addons:add zerigo_dns:basic", repository_name if options[:zerigo]
   end
 
   if environment == 'production'
@@ -119,7 +153,7 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
   git add: "."
   git commit: "-am 'Heroku as asset host on #{environment} environment.'"
 
-  if ask_yes_or_no_question('Push to Heroku')
+  if options[:push]
     git push: "#{environment} master"
     heroku "run rake db:migrate", repository_name
   end
@@ -127,13 +161,76 @@ def bootstrap_heroku_environment environment, team_name = nil, software_name = n
 end
 
 # ============================================================================
-# Information
+# Questions
 # ============================================================================
 
 team_name = ask_question 'Team name'
 team_email = ask_question 'Team email'
 team_url = ask_question 'Team full url'
 styled_team_name = command?('figlet') ? `figlet -f larry3d #{team_name}` : team_name
+is_pt_BR = ask_yes_or_no_question("Change locale to pt-BR and time zone to Brazil's official time")
+has_active_admin = ask_yes_or_no_question('Install admin panel (via ActiveAdmin)')
+has_devise = ask_yes_or_no_question 'Install authentication (via Devise)'
+has_formtastic = false
+has_formtastic = ask_yes_or_no_question 'Install form builder (via Formtastic)' unless has_active_admin
+
+is_free_software = ask_yes_or_no_question 'Is this free software'
+unless is_free_software
+  license_date = ask_question 'Software license date'
+  license_licensee = ask_question 'Software licensee'
+  license_software_name = ask_question 'Software name'
+end
+
+database_prefix = ask_question 'What is your database prefix'
+database_username = ask_question 'What is your database username'
+database_password = ask_question 'What is your database password'
+
+bootstrap_staging = ask_yes_or_no_question('Bootstrap a staging environment on Heroku')
+staging_options = options_for_heroku_bootstrap_environment(:staging, team_name, license_software_name) if bootstrap_staging
+
+bootstrap_production = ask_yes_or_no_question('Bootstrap a production environment on Heroku')
+production_options = options_for_heroku_bootstrap_environment(:production, team_name, license_software_name) if bootstrap_production
+
+
+# ============================================================================
+# Bower
+# ============================================================================
+
+Dir.mkdir 'vendor/assets/bower_components'
+file 'vendor/assets/bower_components/.keep', ''
+
+application do <<-'RUBY'
+
+    config.assets.paths << Rails.root.join('vendor', 'assets', 'bower_components')
+RUBY
+end
+
+file '.bowerrc', <<-'JS'
+{
+  "directory": "vendor/assets/bower_components"
+}
+JS
+
+run 'bower init'
+
+inject_into_file 'bower.json', after: "{\n" do <<-'JS'
+  "dependencies": {
+    "modernizr": "latest",
+    "selectivizr": "latest"
+  },
+JS
+end
+
+inject_into_file 'bower.json', after: "\"authors\": [\n" do <<-JS
+    "#{team_name} <#{team_email}>",
+JS
+end
+
+run 'bower install'
+
+append_file '.gitignore', <<'FILE'
+vendor/assets/bower_components/*
+FILE
 
 # ============================================================================
 # Unicorn + Foreman
@@ -196,6 +293,29 @@ RUBY
 end
 
 # ============================================================================
+# Guard (livereload)
+# ============================================================================
+
+gem 'guard-livereload', require: false, group: :development
+gem 'rack-livereload', group: :development
+gem 'rb-fsevent', require: false, group: :development
+
+run 'bundle exec guard init'
+
+insert_into_file 'Guardfile', after: "guard 'livereload' do\n" do <<-'RUBY'
+  watch(%r{(app|vendor)(/assets/\w+/((?<!#).+\.(css|js|html|scss|sass|coffee))).*}) { |m| "/assets/#{m[3]}" }
+RUBY
+end
+
+gsub_file 'Guardfile', "guard 'livereload' do", "guard 'livereload', grace_period: 0.5 do"
+
+application(nil, env: :development) do <<RUBY
+
+  config.middleware.use Rack::LiveReload
+RUBY
+end
+
+# ============================================================================
 # Action Mailer
 # ============================================================================
 
@@ -230,9 +350,7 @@ en:
       <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.
 YML
 
-pt_BR = ask_yes_or_no_question("Change locale to pt-BR and time zone to Brazil's official time")
-
-if pt_BR
+if is_pt_BR
   application do <<-'RUBY'
 
     config.i18n.default_locale = 'pt-BR'
@@ -470,46 +588,6 @@ file 'app/assets/stylesheets/application.sass', <<SASS
 SASS
 
 # ============================================================================
-# Bower
-# ============================================================================
-
-Dir.mkdir 'vendor/assets/bower_components'
-file 'vendor/assets/bower_components/.keep', ''
-
-application do <<-'RUBY'
-
-    config.assets.paths << Rails.root.join('vendor', 'assets', 'bower_components')
-RUBY
-end
-
-file '.bowerrc', <<-'JS'
-{
-  "directory": "vendor/assets/bower_components"
-}
-JS
-
-run 'bower init'
-
-inject_into_file 'bower.json', after: "{" do <<-'JS'
-  "dependencies": {
-    "modernizr": "latest",
-    "selectivizr": "latest"
-  },
-JS
-end
-
-inject_into_file 'bower.json', after: "\"authors\": [\n" do <<-JS
-    "#{team_name} <#{team_email}>",
-JS
-end
-
-run 'bower install'
-
-append_file '.gitignore', <<'FILE'
-vendor/assets/bower_components/*
-FILE
-
-# ============================================================================
 # Javascripts & Coffeescripts
 # ============================================================================
 
@@ -549,6 +627,7 @@ end
 # ============================================================================
 
 gem 'slim'
+gem 'html2slim', group: :development
 
 application(nil, env: :development) do <<'RUBY'
 Slim::Engine.set_default_options pretty: true, sort_attrs: false, format: :html5
@@ -676,24 +755,25 @@ html.no-js lang="#{I18n.locale}"
 SLIM
 
 file 'app/views/layouts/_metatags.slim', <<'SLIM'
-// html metatags
-meta charset="utf-8"
-meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"
-meta name="author" content="TEAM_NAME — TEAM_URL"
-meta name="description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
-meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0"
+- cache "_metatags-#{content_for?(:title)}-#{content_for?(:description)}"
+  // html metatags
+  meta charset="utf-8"
+  meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"
+  meta name="author" content="TEAM_NAME — TEAM_URL"
+  meta name="description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
+  meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0"
 
-// opengraph metatags
-meta property="og:image" content="#{asset_url('og-image.png')}"
-meta property="og:type" content="website"
-meta property="og:url" content="#{root_url}"
-meta property="og:title" content="#{content_for?(:title) ? yield(:title).to_s + '— ' : ''}#{Rails.application.class.parent_name}"
-meta property="og:description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
-meta property="og:locale" content="pt_BR"
-// meta property="fb:admins" content="#admin-id" 
+  // opengraph metatags
+  meta property="og:image" content="#{asset_url('og-image.png')}"
+  meta property="og:type" content="website"
+  meta property="og:url" content="#{root_url}"
+  meta property="og:title" content="#{content_for?(:title) ? yield(:title).to_s + '— ' : ''}#{Rails.application.class.parent_name}"
+  meta property="og:description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
+  meta property="og:locale" content="pt_BR"
+  // meta property="fb:admins" content="#admin-id" 
 
-// humans.txt
-link rel="author" href="#{asset_url('humans.txt')}"
+  // humans.txt
+  link rel="author" href="#{asset_url('humans.txt')}"
 SLIM
 
 gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_NAME', team_name
@@ -1218,7 +1298,7 @@ route "get 'frontend'           => 'frontend#index'"
 # Active Admin
 # ============================================================================
 
-if active_admin = ask_yes_or_no_question('Install admin panel (via ActiveAdmin)')
+if has_active_admin
   gem 'activeadmin', github: 'gregbell/active_admin'
   run 'bundle'
   generate 'active_admin:install'
@@ -1246,7 +1326,7 @@ en:
       call_to_action: 'Use the navigation menu to edit this application.'
   FILE
 
-  if pt_BR
+  if is_pt_BR
     download 'https://gist.github.com/cerdiogenes/6503790/raw/6c30f6bace4767823807c211544bb7462def72cc/Rails+I18n%3A+devise.pt-BR.yml',
              'config/locales/devise.pt-BR.yml'
 
@@ -1296,7 +1376,7 @@ end
 # Devise
 # ============================================================================
 
-if ask_yes_or_no_question 'Install authentication (via Devise)'
+if has_devise
 
   generate 'devise:views'
   generate 'devise user'
@@ -1307,7 +1387,7 @@ if ask_yes_or_no_question 'Install authentication (via Devise)'
   RUBY
   end
 
-  if active_admin
+  if has_active_admin
     file 'app/admin/user.rb', <<-'RUBY'
 ActiveAdmin.register User do
   index do
@@ -1337,7 +1417,7 @@ ActiveAdmin.register User do
 end
     RUBY
 
-    if pt_BR
+    if is_pt_BR
       file 'config/locales/user_model.pt-BR.yml', <<-'YML'
 pt-BR:
   activerecord:
@@ -1365,7 +1445,7 @@ pt-BR:
     gem 'devise'
     generate 'devise:install'
 
-    if pt_BR
+    if is_pt_BR
       download 'https://gist.github.com/cerdiogenes/6503790/raw/6c30f6bace4767823807c211544bb7462def72cc/Rails+I18n%3A+devise.pt-BR.yml',
                'config/locales/devise.pt-BR.yml'
     end
@@ -1405,13 +1485,10 @@ end
 # Formtastic
 # ============================================================================
 
-unless active_admin
-  if ask_yes_or_no_question 'Install form builder (via Formtastic)'
-    gem 'formtastic'
-    generate 'formtastic:install'
-  end
+if has_formtastic
+  gem 'formtastic'
+  generate 'formtastic:install'
 end
-
 
 # ============================================================================
 # rvm, ruby 2.0
@@ -1525,10 +1602,6 @@ gem 'pg'
 gsub_file 'Gemfile', "gem 'sqlite3'", "# gem 'sqlite3'"
 gsub_file 'config/database.yml', /^(?!#)/, '#'
 
-database_prefix = ask_question 'What is your database prefix'
-database_username = ask_question 'What is your database username'
-database_password = ask_question 'What is your database password'
-
 append_file 'config/database.yml', <<YML
 development:
   adapter: postgresql
@@ -1567,9 +1640,9 @@ rake 'db:migrate'
 # License
 # ============================================================================
 
-if ask_yes_or_no_question 'Is this free software'
+if is_free_software
 
-file 'LICENSE', <<FILE
+  file 'LICENSE', <<-'FILE'
 DUAL LICENSE: GPL3 and MIT
 
 
@@ -1611,17 +1684,13 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-FILE
+  FILE
 
 gsub_file 'LICENSE', 'TEAM_NAME', team_name
 
 else
 
-license_date = ask_question 'Software license date'
-license_licensee = ask_question 'Software licensee'
-license_software_name = ask_question 'Software name'
-
-file 'LICENSE', <<FILE
+  file 'LICENSE', <<-'FILE'
 1. Preamble: This Agreement, signed on LICENSE_DATE [hereinafter: Effective Date]
    governs the relationship between LICENSE_LICENSEE, (hereinafter: Licensee) 
    and TEAM_NAME (Hereinafter: Licensor). 
@@ -1761,12 +1830,12 @@ file 'LICENSE', <<FILE
     class-action lawsuits against Licensor in relation to this license and 
     to compensate Licensor for any legal fees, cost or attorney fees should 
     any claim brought by Licensee against Licensor be denied, in part or in full.
-FILE
+  FILE
 
-gsub_file 'LICENSE', 'LICENSE_DATE', license_date
-gsub_file 'LICENSE', 'LICENSE_LICENSEE', license_licensee
-gsub_file 'LICENSE', 'TEAM_NAME', team_name
-gsub_file 'LICENSE', 'SOFTWARE_NAME', license_software_name
+  gsub_file 'LICENSE', 'LICENSE_DATE', license_date
+  gsub_file 'LICENSE', 'LICENSE_LICENSEE', license_licensee
+  gsub_file 'LICENSE', 'TEAM_NAME', team_name
+  gsub_file 'LICENSE', 'SOFTWARE_NAME', license_software_name
 
 end
 
@@ -1812,7 +1881,7 @@ git commit: "-am 'Genesis.'"
 # Bootstrap Heroku environment
 # ============================================================================
 
-if ask_yes_or_no_question('Bootstrap a staging environment on Heroku')
+if bootstrap_staging
 
   file 'config/environments/staging.rb', File.read('config/environments/production.rb')
 
@@ -1830,15 +1899,15 @@ staging:
   git add: "."
   git commit: "-am 'Creating staging environment.'"
 
-  bootstrap_heroku_environment('staging', team_name, license_software_name)
+  bootstrap_heroku_environment 'staging', staging_options
 
   heroku 'config:set HEROKU_WAKEUP=false'
 
   git config: "heroku.remote staging"
 end
 
-if ask_yes_or_no_question('Bootstrap a production environment on Heroku')
-  bootstrap_heroku_environment('production', team_name, license_software_name)
+if bootstrap_production
+  bootstrap_heroku_environment 'production', production_options
 
   heroku 'config:set HEROKU_WAKEUP=true'
 end
