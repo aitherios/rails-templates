@@ -294,7 +294,7 @@ RUBY
 end
 
 # ============================================================================
-# Guard (livereload)
+# Guard (livereload, bundler)
 # ============================================================================
 
 gem 'guard-livereload', require: false, group: :development
@@ -303,10 +303,7 @@ gem 'rb-fsevent', require: false, group: :development
 
 run 'bundle exec guard init'
 
-insert_into_file 'Guardfile', after: "guard 'livereload' do\n" do <<-'RUBY'
-  watch(%r{(app|vendor)(/assets/\w+/((?<!#).+\.(css|js|html|scss|sass|coffee))).*}) { |m| "/assets/#{m[3]}" }
-RUBY
-end
+gsub_file 'Guardfile', '(.+\.(css|js|html)))', '((?<!#).+\.(css|js|html|scss|sass|coffee)))'
 
 gsub_file 'Guardfile', "guard 'livereload' do", "guard 'livereload', grace_period: 0.5 do"
 
@@ -315,6 +312,9 @@ application(nil, env: :development) do <<RUBY
   config.middleware.use Rack::LiveReload
 RUBY
 end
+
+gem 'guard-bundler', group: :development
+run 'bundle exec guard init bundler'
 
 # ============================================================================
 # Action Mailer
