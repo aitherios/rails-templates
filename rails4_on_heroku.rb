@@ -250,6 +250,7 @@ RAILS_ENV=development
 APP_HOSTNAME=localhost
 HEROKU_WAKEUP=false
 PORT=5000
+MEMCACHIER_SERVERS=localhost:11211
 FILE
 
 file 'config/unicorn.rb', <<RUBY
@@ -755,20 +756,21 @@ html.no-js lang="#{I18n.locale}"
 SLIM
 
 file 'app/views/layouts/_metatags.slim', <<'SLIM'
-- cache "_metatags-#{content_for?(:title)}-#{content_for?(:description)}"
+meta name="description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
+meta property="og:title" content="#{content_for?(:title) ? yield(:title).to_s + '— ' : ''}#{Rails.application.class.parent_name}"
+meta property="og:description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
+
+- cache "layouts/_metatags" do
   // html metatags
   meta charset="utf-8"
   meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"
   meta name="author" content="TEAM_NAME — TEAM_URL"
-  meta name="description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
   meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0"
 
   // opengraph metatags
   meta property="og:image" content="#{asset_url('og-image.png')}"
   meta property="og:type" content="website"
   meta property="og:url" content="#{root_url}"
-  meta property="og:title" content="#{content_for?(:title) ? yield(:title).to_s + '— ' : ''}#{Rails.application.class.parent_name}"
-  meta property="og:description" content="#{content_for?(:description) ? yield(:description) : Rails.application.class.parent_name}"
   meta property="og:locale" content="pt_BR"
   // meta property="fb:admins" content="#admin-id" 
 
@@ -780,20 +782,21 @@ gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_NAME', team_name
 gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_URL', team_url
 
 file 'app/views/layouts/_favicons.slim', <<'SLIM'
-== favicon_link_tag '/apple-touch-icon-144x144-precomposed.png', rel: 'apple-touch-icon', \
+- cache "layouts/_favicons" do
+  == favicon_link_tag '/apple-touch-icon-144x144-precomposed.png', rel: 'apple-touch-icon', \
+                                                                   type: 'image/png', \
+                                                                   sizes: '144x144'
+  == favicon_link_tag '/apple-touch-icon-114x114-precomposed.png', rel: 'apple-touch-icon', \
+                                                                   type: 'image/png', \
+                                                                   sizes: '114x114'
+  == favicon_link_tag '/apple-touch-icon-72x72-precomposed.png', rel: 'apple-touch-icon', \
                                                                  type: 'image/png', \
-                                                                 sizes: '144x144'
-== favicon_link_tag '/apple-touch-icon-114x114-precomposed.png', rel: 'apple-touch-icon', \
+                                                                 sizes: '72x72'
+  == favicon_link_tag '/apple-touch-icon-57x57-precomposed.png', rel: 'apple-touch-icon', \
                                                                  type: 'image/png', \
-                                                                 sizes: '114x114'
-== favicon_link_tag '/apple-touch-icon-72x72-precomposed.png', rel: 'apple-touch-icon', \
-                                                               type: 'image/png', \
-                                                               sizes: '72x72'
-== favicon_link_tag '/apple-touch-icon-57x57-precomposed.png', rel: 'apple-touch-icon', \
-                                                               type: 'image/png', \
-                                                               sizes: '57x57'
-== favicon_link_tag '/favicon.png', type: 'image/png'
-== favicon_link_tag '/favicon.ico'
+                                                                 sizes: '57x57'
+  == favicon_link_tag '/favicon.png', type: 'image/png'
+  == favicon_link_tag '/favicon.ico'
 SLIM
 
 [ 'favicon.png',
@@ -820,7 +823,10 @@ SLIM
 file 'app/controllers/pages_controller.rb', <<'RUBY'
 class PagesController < ApplicationController
   def show
-    render_page_template or render_not_found
+    expires_in 5.minutes, public: true, must_revalidate: true
+    if stale? etag: "pages#show/params[:slug]"
+      render_page_template or render_not_found
+    end
   end
 
   private
@@ -831,7 +837,7 @@ class PagesController < ApplicationController
 end
 RUBY
 
-route "root to: 'pages#index'"
+route "root to: 'pages#show', defaults: { slug: 'index'}"
 route "get ':slug' => 'pages#show', as: :page"
 
 Dir.mkdir 'app/views/frontend'
@@ -1291,8 +1297,8 @@ section.page
         div: button type="submit"
 SLIM
 
-route "get 'frontend/:template' => 'frontend#show'"
-route "get 'frontend'           => 'frontend#index'"
+route "get 'frontend/:template' => 'frontend#show' unless Rails.env.production?"
+route "get 'frontend'           => 'frontend#index' unless Rails.env.production?"
 
 # ============================================================================
 # Active Admin
@@ -1381,11 +1387,9 @@ if has_devise
   generate 'devise:views'
   generate 'devise user'
 
-  application do <<-'RUBY'
-
-    config.filter_parameters += [:password, :password_confirmation]
-  RUBY
-  end
+  gsub_file 'config/initializers/filter_parameter_logging.rb', 
+            '[:password]',
+            '[:password_confirmation]'
 
   if has_active_admin
     file 'app/admin/user.rb', <<-'RUBY'
@@ -1568,7 +1572,55 @@ RUBY
 end
 
 # ============================================================================
-# Rack::Cache && Memcache
+# Bullet
+# ============================================================================
+
+gem 'bullet', group: :development
+
+application(nil, env: :development) do <<-'RUBY'
+
+  config.after_initialize do
+    Bullet.enable = true
+    Bullet.alert = true
+    Bullet.console = true
+    Bullet.rails_logger = true
+  end
+RUBY
+end
+
+# ============================================================================
+# Better Errors
+# ============================================================================
+
+gem 'better_errors', group: :development
+gem 'binding_of_caller', group: :development
+
+# ============================================================================
+# New Relic
+# ============================================================================
+
+gem 'newrelic_rpm', group: :production
+gem 'newrelic_rpm', group: :staging
+
+download 'https://gist.github.com/rwdaigle/2253296/raw/newrelic.yml', 'config'
+
+# ============================================================================
+# Sentry
+# ============================================================================
+
+gem 'sentry-raven', group: :production
+gem 'sentry-raven', group: :staging
+
+initializer 'sentry.rb', <<-'RUBY'
+unless Rails.env.development?
+  Raven.configure do |config|
+    config.current_environment = ENV['RAILS_ENV']
+  end
+end
+RUBY
+
+# ============================================================================
+# Rack::Cache && Memcache via Memcachier
 # ============================================================================
 
 gem "rack-cache"
@@ -1588,7 +1640,8 @@ application(nil, env: :production) do <<-'RUBY'
   config.action_dispatch.rack_cache = {
     metastore: client,
     entitystore: client,
-    allow_reload: false
+    allow_reload: false,
+    verbose: false
   }
 RUBY
 end
