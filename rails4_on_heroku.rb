@@ -243,6 +243,11 @@ file 'Procfile', <<FILE
 web: bundle exec unicorn -p $PORT -c ./config/unicorn.rb
 FILE
 
+file 'Procfile-dev', <<FILE
+web: bundle exec unicorn -p $PORT -c ./config/unicorn.rb
+guard: bundle exec guard start -i
+FILE
+
 file '.env', <<FILE
 WEB_CONCURRENCY=1
 RACK_ENV=none
@@ -1966,7 +1971,7 @@ if bootstrap_production
 end
 
 # ============================================================================
-# Database.yml
+# Files to be commited only a first version
 # ============================================================================
 
 append_file '.gitignore', <<'FILE'
@@ -1977,3 +1982,12 @@ FILE
 
 git add: "."
 git commit: "-am 'Ignoring database.yml, leaving default commited.'"
+
+append_file '.gitignore', <<'FILE'
+
+# Procfile-dev
+Procfile-dev
+FILE
+
+git add: "."
+git commit: "-am 'Ignoring Procfile-dev, leaving default commited.'"
