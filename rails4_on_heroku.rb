@@ -46,7 +46,7 @@ def ask_yes_or_no_question question
 end
 
 def warn message
-  puts "      \033[1;33mwarn\033[0m      #{message}"
+  puts "        \033[1;33mwarn\033[0m    #{message}"
 end
 
 def heroku command, repository = ''
@@ -57,9 +57,25 @@ def heroku command, repository = ''
   end
 end
 
-def create_sendgrid_initializer
-  unless File.exists?('config/initializers/mail.rb')
-    initializer 'mail.rb', <<-'RUBY'
+def create_mailtrap_configuration environment
+  append_file "config/environments/#{environment}.rb", <<-'RUBY'
+ActionMailer::Base.delivery_method = :smtp
+ActionMailer::Base.smtp_settings = {
+  address:        ENV['MAILTRAP_HOST'],
+  port:           ENV['MAILTRAP_PORT'],
+  authentication: :plain,
+  user_name:      ENV['MAILTRAP_USER_NAME'],
+  password:       ENV['MAILTRAP_PASSWORD']
+}
+    RUBY
+
+  git add: "."
+  git commit: "-am 'Mailtrap configuration for #{environment}.'"
+end
+
+def create_sendgrid_configuration environment
+  append_file "config/environments/#{environment}.rb", <<-'RUBY'
+ActionMailer::Base.delivery_method = :smtp
 ActionMailer::Base.smtp_settings = {
   address:              'smtp.sendgrid.net',
   port:                 '587',
@@ -69,12 +85,10 @@ ActionMailer::Base.smtp_settings = {
   domain:               ENV['APP_HOSTNAME'],
   enable_starttls_auto: true
 }
-ActionMailer::Base.delivery_method = :smtp
     RUBY
 
-    git add: "."
-    git commit: "-am 'Sendgrid configuration initializer.'"
-  end
+  git add: "."
+  git commit: "-am 'Sendgrid configuration for #{environment}.'"
 end
 
 def check_heroku_repository_name name
@@ -102,8 +116,8 @@ def options_for_heroku_bootstrap_environment environment, team_name, software_na
   options[:repository_name] = repository_name
 
   options[:free_addons] = ask_yes_or_no_question("Bootstrap free Heroku addons for #{environment}")
-  options[:sendgrid] = ask_yes_or_no_question("Bootstrap free Heroku email addon for #{environment}")
-  options[:zerigo] = ask_yes_or_no_question("Bootstrap free Heroku dns addon for #{environment}")
+  options[:email] = ask_yes_or_no_question("Bootstrap free Heroku email addon for #{environment}")
+  options[:dns] = ask_yes_or_no_question("Bootstrap free Heroku dns addon for #{environment}")
 
   options[:push] = ask_yes_or_no_question("Push #{environment} to Heroku")
 
@@ -130,15 +144,22 @@ def bootstrap_heroku_environment environment, options
     heroku "addons:add sentry:developer", repository_name
     heroku "addons:add scheduler:standard", repository_name
 
-    if options[:sendgrid]
-      heroku "addons:add sendgrid:starter", repository_name
-      create_sendgrid_initializer
+    if options[:email]
+      if environment.to_s == 'staging'
+        warn 'Adding Mailtrap since its a staging environment'
+        heroku "addons:add mailtrap:free", repository_name
+        create_mailtrap_configuration environment
+      else
+        warn 'Adding Sendgrid'
+        heroku "addons:add sendgrid:starter", repository_name
+        create_sendgrid_configuration environment
+      end
     end
 
-    heroku "addons:add zerigo_dns:basic", repository_name if options[:zerigo]
+    heroku "addons:add zerigo_dns:basic", repository_name if options[:dns]
   end
 
-  if environment == 'production'
+  if environment.to_s == 'production'
     heroku "config:set HEROKU_WAKEUP=true", repository_name
   else
     heroku "config:set HEROKU_WAKEUP=false", repository_name
@@ -152,12 +173,13 @@ def bootstrap_heroku_environment environment, options
 
   git add: "."
   git commit: "-am 'Heroku as asset host on #{environment} environment.'"
+end
 
+def push_to_heroku environment, options
   if options[:push]
     git push: "#{environment} master"
-    heroku "run rake db:migrate", repository_name
+    heroku "run rake db:migrate", options[:repository_name]
   end
-
 end
 
 # ============================================================================
@@ -1960,12 +1982,14 @@ staging:
   bootstrap_heroku_environment 'staging', staging_options
 
   git config: "heroku.remote staging"
+
+  push_to_heroku 'staging', staging_options
 end
 
 if bootstrap_production
   bootstrap_heroku_environment 'production', production_options
 
-  heroku 'config:set HEROKU_WAKEUP=true'
+  push_to_heroku 'production', staging_options
 end
 
 # ============================================================================
