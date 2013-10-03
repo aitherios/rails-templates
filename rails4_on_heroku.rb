@@ -1416,7 +1416,7 @@ if has_devise
 
   gsub_file 'config/initializers/filter_parameter_logging.rb', 
             '[:password]',
-            '[:password_confirmation]'
+            '[:password, :password_confirmation]'
 
   if has_active_admin
     file 'app/admin/user.rb', <<-'RUBY'
