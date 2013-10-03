@@ -1959,8 +1959,6 @@ staging:
 
   bootstrap_heroku_environment 'staging', staging_options
 
-  heroku 'config:set HEROKU_WAKEUP=false'
-
   git config: "heroku.remote staging"
 end
 
