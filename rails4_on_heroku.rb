@@ -651,6 +651,21 @@ RUBY
 end
 
 # ============================================================================
+# Draper
+# ============================================================================
+
+gem 'draper'
+
+Dir.mkdir 'app/models/decorators'
+file 'app/models/decorators/.keep', ''
+
+application do <<-'RUBY'
+
+    config.autoload_paths += Dir[Rails.root.join('app', 'models', 'decorators')]
+RUBY
+end
+
+# ============================================================================
 # Slim
 # ============================================================================
 
@@ -850,7 +865,6 @@ SLIM
 file 'app/controllers/pages_controller.rb', <<'RUBY'
 class PagesController < ApplicationController
   def show
-    expires_in 5.minutes, public: true, must_revalidate: true
     if stale? etag: "pages#show/params[:slug]"
       render_page_template or render_not_found
     end
