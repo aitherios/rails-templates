@@ -374,8 +374,7 @@ en:
   app:
     old_ie_warning:
       You are using an <strong>outdated</strong> browser. 
-      Please <a href="http://browsehappy.com/">upgrade your browser</a> or 
-      <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.
+      Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.
 YML
 
 if is_pt_BR
@@ -393,8 +392,7 @@ pt-BR:
   app:
     old_ie_warning:
       Você está usando um navegador <strong>desatualizado</strong>. 
-      Por favor <a href="http://browsehappy.com/">atualize o seu navegador</a> ou 
-      <a href="http://www.google.com/chromeframe/?redirect=true">ative o Google Chrome Frame</a> para melhorar a sua experiência.
+      Por favor <a href="http://browsehappy.com/">atualize o seu navegador</a> para melhorar a sua experiência.
   YML
 end
 
@@ -766,6 +764,7 @@ TXT
 File.delete 'app/views/layouts/application.html.erb'
 
 file 'app/views/layouts/application.slim', <<-'SLIM'
+/ Based on HTML5 Boilerplate 4.3.0, http://html5boilerplate.com/
 doctype html
 
 /[if lt IE 7]
@@ -805,9 +804,9 @@ meta property="og:description" content="#{content_for?(:description) ? yield(:de
 - cache "layouts/_metatags" do
   // html metatags
   meta charset="utf-8"
-  meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"
+  meta http-equiv="X-UA-Compatible" content="IE=edge"
   meta name="author" content="TEAM_NAME — TEAM_URL"
-  meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0"
+  meta name="viewport" content="width=device-width, initial-scale=1"
 
   // opengraph metatags
   meta property="og:image" content="#{asset_url('og-image.png')}"
@@ -852,8 +851,8 @@ SLIM
   'og-image.png' ].each { |f| download f, 'public' }
 
 file 'app/views/layouts/_browser_warning.slim', <<'SLIM'
-/[if lt IE 9]
-  p.l-chromeframe == t 'app.old_ie_warning'
+/[if lt IE 7]
+  p.browsehappy == t 'app.old_ie_warning'
 SLIM
 
 Dir.mkdir 'app/views/pages'
@@ -1995,15 +1994,13 @@ staging:
 
   bootstrap_heroku_environment 'staging', staging_options
 
-  git config: "heroku.remote staging"
-
   push_to_heroku 'staging', staging_options
 end
 
 if bootstrap_production
   bootstrap_heroku_environment 'production', production_options
 
-  push_to_heroku 'production', staging_options
+  push_to_heroku 'production', production_options
 end
 
 # ============================================================================
@@ -2012,18 +2009,12 @@ end
 
 append_file '.gitignore', <<'FILE'
 
+# Procfile-dev
+Procfile-dev
+
 # Rails database.yml
 config/database.yml
 FILE
 
 git add: "."
-git commit: "-am 'Ignoring database.yml, leaving default commited.'"
-
-append_file '.gitignore', <<'FILE'
-
-# Procfile-dev
-Procfile-dev
-FILE
-
-git add: "."
-git commit: "-am 'Ignoring Procfile-dev, leaving default commited.'"
+git commit: "-am 'Ignoring database.yml and Procfile-dev, leaving default commited.'"
