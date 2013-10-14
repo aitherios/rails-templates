@@ -831,6 +831,7 @@ file 'app/views/layouts/_favicons.slim', <<'SLIM'
   == favicon_link_tag '/favicon.ico'
 SLIM
 
+File.delete 'public/favicon.ico'
 download 'favicon.ico', 'public'
 download 'apple-touch-icon-152x152-precomposed.png', 'public/apple-touch-icon-precomposed.png'
 
@@ -1948,6 +1949,15 @@ doc/
 
 # PSD Files
 *.psd
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 FILE
 
 git :init
