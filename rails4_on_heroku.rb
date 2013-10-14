@@ -198,7 +198,7 @@ has_formtastic = ask_yes_or_no_question 'Install form builder (via Formtastic)' 
 
 is_free_software = ask_yes_or_no_question 'Is this free software'
 unless is_free_software
-  license_date = ask_question 'Software license date'
+  license_date = ask_question 'Software license date', Time.now.strftime('%Y-%m-%d')
   license_licensee = ask_question 'Software licensee'
   license_software_name = ask_question 'Software name'
 end
@@ -237,6 +237,7 @@ run 'bower init'
 
 inject_into_file 'bower.json', after: "{\n" do <<-'JS'
   "dependencies": {
+    "jquery": "latest",
     "modernizr": "latest",
     "selectivizr": "latest"
   },
@@ -619,7 +620,7 @@ SASS
 
 File.delete 'app/assets/javascripts/application.js'
 file 'app/assets/javascripts/application.coffee', <<COFFEE
-#= require jquery
+#= require jquery/jquery
 #= require jquery_ujs
 #= require modernizr/modernizr
 COFFEE
@@ -824,31 +825,14 @@ gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_URL', team_url
 
 file 'app/views/layouts/_favicons.slim', <<'SLIM'
 - cache "layouts/_favicons" do
-  == favicon_link_tag '/apple-touch-icon-144x144-precomposed.png', rel: 'apple-touch-icon', \
-                                                                   type: 'image/png', \
-                                                                   sizes: '144x144'
-  == favicon_link_tag '/apple-touch-icon-114x114-precomposed.png', rel: 'apple-touch-icon', \
-                                                                   type: 'image/png', \
-                                                                   sizes: '114x114'
-  == favicon_link_tag '/apple-touch-icon-72x72-precomposed.png', rel: 'apple-touch-icon', \
-                                                                 type: 'image/png', \
-                                                                 sizes: '72x72'
-  == favicon_link_tag '/apple-touch-icon-57x57-precomposed.png', rel: 'apple-touch-icon', \
-                                                                 type: 'image/png', \
-                                                                 sizes: '57x57'
-  == favicon_link_tag '/favicon.png', type: 'image/png'
+  == favicon_link_tag '/apple-touch-icon-precomposed.png', rel: 'apple-touch-icon', \
+                                                           type: 'image/png', \
+                                                           sizes: '152x152'
   == favicon_link_tag '/favicon.ico'
 SLIM
 
-[ 'favicon.png',
-  'favicon.ico',
-  'apple-touch-icon-144x144-precomposed.png',
-  'apple-touch-icon-114x114-precomposed.png',
-  'apple-touch-icon-72x72-precomposed.png',
-  'apple-touch-icon-57x57-precomposed.png',
-  'apple-touch-icon-precomposed.png',
-  'apple-touch-icon.png',
-  'og-image.png' ].each { |f| download f, 'public' }
+download 'favicon.ico', 'public'
+download 'apple-touch-icon-152x152-precomposed.png', 'public/apple-touch-icon-precomposed.png'
 
 file 'app/views/layouts/_browser_warning.slim', <<'SLIM'
 /[if lt IE 7]
