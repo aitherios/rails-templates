@@ -823,7 +823,7 @@ SLIM
 gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_NAME', team_name
 gsub_file 'app/views/layouts/_metatags.slim', 'TEAM_URL', team_url
 
-file 'app/views/layouts/_favicons.slim', <<'SLIM'
+file 'app/views/layouts/_favicons.slim', <<-'SLIM'
 - cache "layouts/_favicons" do
   == favicon_link_tag '/apple-touch-icon-precomposed.png', rel: 'apple-touch-icon', \
                                                            type: 'image/png', \
@@ -835,18 +835,18 @@ File.delete 'public/favicon.ico'
 download 'favicon.ico', 'public'
 download 'apple-touch-icon-152x152-precomposed.png', 'public/apple-touch-icon-precomposed.png'
 
-file 'app/views/layouts/_browser_warning.slim', <<'SLIM'
+file 'app/views/layouts/_browser_warning.slim', <<-'SLIM'
 /[if lt IE 7]
   p.browsehappy == t 'app.old_ie_warning'
 SLIM
 
 Dir.mkdir 'app/views/pages'
 
-file 'app/views/pages/index.slim', <<SLIM
+file 'app/views/pages/index.slim', <<-'SLIM'
 h1 pages#index
 SLIM
 
-file 'app/controllers/pages_controller.rb', <<'RUBY'
+file 'app/controllers/pages_controller.rb', <<-'RUBY'
 class PagesController < ApplicationController
   def show
     if stale? etag: "pages#show/params[:slug]"
@@ -867,19 +867,16 @@ route "get ':slug' => 'pages#show', as: :page"
 
 Dir.mkdir 'app/views/frontend'
 
-file 'app/controllers/frontend_controller.rb', <<RUBY
+file 'app/controllers/frontend_controller.rb', <<-'RUBY'
 class FrontendController < ApplicationController
-  def index
-    @entries = Dir.entries(Rails.root.join('app', 'views', 'frontend')) - [".", "..", "index.slim"]
-  end
-
   def show
+    @entries = Dir.entries(Rails.root.join('app', 'views', 'frontend')) - [".", "..", "index.slim"]
     render params[:template]
   end
 end
 RUBY
 
-file 'app/views/frontend/index.slim', <<SLIM
+file 'app/views/frontend/index.slim', <<-'SLIM'
 - if @entries.present?
   h1 Frontend Files:
   ul
@@ -1322,8 +1319,8 @@ section.page
         div: button type="submit"
 SLIM
 
-route "get 'frontend/:template' => 'frontend#show' unless Rails.env.production?"
-route "get 'frontend'           => 'frontend#index' unless Rails.env.production?"
+route "get 'frontend/:template' => 'frontend#show', as: :frontend unless Rails.env.production?"
+route "get 'frontend'           => 'frontend#show', defaults: { template: 'index' } unless Rails.env.production?"
 
 # ============================================================================
 # Active Admin
