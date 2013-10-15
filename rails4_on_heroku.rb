@@ -446,7 +446,7 @@ gem 'oily_png'
 # ============================================================================
 
 Dir.mkdir 'app/assets/stylesheets/base'
-file 'app/assets/stylesheets/base/_all.sass', <<SASS
+file 'app/assets/stylesheets/base/_all.sass', <<-'SASS'
 // ---------------------------------------------------------------------------
 //  BASE IMPORTS
 // ---------------------------------------------------------------------------
@@ -470,7 +470,7 @@ file 'app/assets/stylesheets/base/_all.sass', <<SASS
 +establish-baseline
 
 html
-  overflow-y: scroll
+  min-height: 100%
 
 body
   color: $text-color
@@ -482,9 +482,13 @@ body
   background: $text-selection-background
   color: $text-selection-color
 
+*
+  margin: 0
+  padding: 0
+
 SASS
 
-file 'app/assets/stylesheets/base/_variables.sass', <<SASS
+file 'app/assets/stylesheets/base/_variables.sass', <<-'SASS'
 // SINGULARITYGS & BREAKPOINT
 $bp-320: 320px
 $bp-768: 768px
@@ -529,7 +533,7 @@ $text-color: $gray-dark !default
 
 SASS
 
-file 'app/assets/stylesheets/base/_fonts.sass', <<SASS
+file 'app/assets/stylesheets/base/_fonts.sass', <<-'SASS'
 @charset "UTF-8"
 // @import url(http://fonts.googleapis.com/css?family=PT+Sans+Caption:400,700)
 // +font-face("Font", font-files("font.woff", woff, "font.otf", opentype, "font.ttf", truetype, "font.svg", svg), "font.eot", bold, normal)
@@ -538,7 +542,7 @@ SASS
 Dir.mkdir 'vendor/assets/fonts'
 file 'vendor/assets/fonts/.keep', ''
 
-file 'app/assets/stylesheets/base/_mixins.sass', <<'SASS'
+file 'app/assets/stylesheets/base/_mixins.sass', <<-'SASS'
 =background-2x($background, $file: 'png')
   $image: #{$background+"."+$file}
   $image2x: #{$background+"@2x."+$file}
@@ -562,27 +566,26 @@ file 'app/assets/stylesheets/base/_mixins.sass', <<'SASS'
 
 SASS
 
-file 'app/assets/stylesheets/base/_lt_ie9.sass', <<SASS
+file 'app/assets/stylesheets/base/_lt_ie9.sass', <<-'SASS'
 html.lt-ie9
-  body
-    header
-      display: none
-    section.page
-      display: none
-    footer
-      display: none
+
 SASS
 
 Dir.mkdir 'app/assets/stylesheets/layouts'
-file 'app/assets/stylesheets/layouts/_all.sass', <<SASS
+file 'app/assets/stylesheets/layouts/_all.sass', <<-'SASS'
 // ---------------------------------------------------------------------------
 //  LAYOUT IMPORTS
 // ---------------------------------------------------------------------------
 // Styles relevant only to the page layouts.
 SASS
 
+file 'app/assets/stylesheets/layouts/_page.sass', <<-'SASS'
+.l-page
+  padding-top: 1px
+SASS
+
 Dir.mkdir 'app/assets/stylesheets/modules'
-file 'app/assets/stylesheets/modules/_all.sass', <<SASS
+file 'app/assets/stylesheets/modules/_all.sass', <<-'SASS'
 // ---------------------------------------------------------------------------
 //  MODULE IMPORTS
 // ---------------------------------------------------------------------------
@@ -590,7 +593,7 @@ file 'app/assets/stylesheets/modules/_all.sass', <<SASS
 SASS
 
 Dir.mkdir 'app/assets/stylesheets/states'
-file 'app/assets/stylesheets/states/_all.sass', <<SASS
+file 'app/assets/stylesheets/states/_all.sass', <<-'SASS'
 // ---------------------------------------------------------------------------
 //  STATE IMPORTS
 // ---------------------------------------------------------------------------
@@ -598,7 +601,7 @@ file 'app/assets/stylesheets/states/_all.sass', <<SASS
 SASS
 
 Dir.mkdir 'app/assets/stylesheets/themes'
-file 'app/assets/stylesheets/themes/_all.sass', <<SASS
+file 'app/assets/stylesheets/themes/_all.sass', <<-'SASS'
 // ---------------------------------------------------------------------------
 //  THEME IMPORTS
 // ---------------------------------------------------------------------------
@@ -606,7 +609,7 @@ file 'app/assets/stylesheets/themes/_all.sass', <<SASS
 SASS
 
 File.delete 'app/assets/stylesheets/application.css'
-file 'app/assets/stylesheets/application.sass', <<SASS
+file 'app/assets/stylesheets/application.sass', <<-'SASS'
 @import "base/all"
 @import "layouts/all"
 @import "modules/all"
@@ -793,7 +796,7 @@ html.no-js lang="#{I18n.locale}"
   body class="#{yield :body_class}"
     == render 'layouts/browser_warning'
 
-    section.page
+    section.l-page class="#{yield :wrapper_class}"
       == yield
 SLIM
 
@@ -885,7 +888,7 @@ file 'app/views/frontend/index.slim', <<-'SLIM'
 
 h1 Comparison Sheet:
 
-section.page
+section.l-page
   #content
     h1 Heading 1
     h2 Heading 2
