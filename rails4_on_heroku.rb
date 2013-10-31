@@ -167,7 +167,7 @@ def bootstrap_heroku_environment environment, options
 
   application(nil, env: environment) do <<-RUBY
 
-  config.asset_host = "http://#{heroku_domain}"
+  # config.asset_host = "http://#{heroku_domain}"
   RUBY
   end
 
@@ -237,9 +237,8 @@ run 'bower init'
 
 inject_into_file 'bower.json', after: "{\n" do <<-'JS'
   "dependencies": {
-    "jquery": "latest",
-    "modernizr": "latest",
-    "selectivizr": "latest"
+    "jquery": "~> 1.10.0",
+    "modernizr": "latest"
   },
 JS
 end
@@ -463,7 +462,6 @@ file 'app/assets/stylesheets/base/_all.sass', <<-'SASS'
 @import "variables"
 @import "mixins"
 @import "fonts"
-@import "lt_ie9"
 
 // BASE STYLES
 
@@ -514,7 +512,7 @@ $font-unit: 14px
 // COMPASS CROSS-BROWSER SUPPORT
 $legacy-support-for-ie6: false
 $legacy-support-for-ie7: false
-$legacy-support-for-ie8: false
+$legacy-support-for-ie8: true
 
 // COMPASS DEFAULTS
 $default-text-shadow-blur: 0
@@ -563,11 +561,6 @@ file 'app/assets/stylesheets/base/_mixins.sass', <<-'SASS'
 
 =debug
   background-color: rgba(red,0.6)
-
-SASS
-
-file 'app/assets/stylesheets/base/_lt_ie9.sass', <<-'SASS'
-html.lt-ie9
 
 SASS
 
@@ -628,10 +621,6 @@ file 'app/assets/javascripts/application.coffee', <<COFFEE
 #= require modernizr/modernizr
 COFFEE
 
-file 'app/assets/javascripts/lt_ie9.coffee', <<COFFEE
-#= require selectivizr/selectivizr
-COFFEE
-
 file 'app/assets/javascripts/viewport.coffee', <<'COFFEE'
 $ ->
   iphone = 'user-scalable=yes, width=980, initial-scale=0.33'
@@ -647,7 +636,6 @@ COFFEE
 application(nil, env: :production) do <<-'RUBY'
 
   config.assets.precompile += %w(
-    lt_ie9.js
   )
 RUBY
 end
@@ -762,7 +750,7 @@ http://coffeescript.org
 TXT
 
 # ============================================================================
-# Pages Controller, Frontend Controller, HTML5Boilerplate Layout
+# HTML5Boilerplate Layout
 # ============================================================================
 
 File.delete 'app/views/layouts/application.html.erb'
@@ -790,8 +778,6 @@ html.no-js lang="#{I18n.locale}"
     == csrf_meta_tags unless response.cache_control[:public]
     == stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track' => true
     == javascript_include_tag 'application', 'data-turbolinks-track' => true
-    /[if lt IE 9]
-      == javascript_include_tag 'lt_ie9', 'data-turbolinks-track' => true
 
   body class="#{yield :body_class}"
     == render 'layouts/browser_warning'
@@ -839,9 +825,13 @@ download 'favicon.ico', 'public'
 download 'apple-touch-icon-152x152-precomposed.png', 'public/apple-touch-icon-precomposed.png'
 
 file 'app/views/layouts/_browser_warning.slim', <<-'SLIM'
-/[if lt IE 7]
+/[if lte IE 7]
   p.browsehappy == t 'app.old_ie_warning'
 SLIM
+
+# ============================================================================
+# Pages Controller, Frontend Controller
+# ============================================================================
 
 Dir.mkdir 'app/views/pages'
 
@@ -852,9 +842,7 @@ SLIM
 file 'app/controllers/pages_controller.rb', <<-'RUBY'
 class PagesController < ApplicationController
   def show
-    if stale? etag: "pages#show/params[:slug]"
-      render_page_template or render_not_found
-    end
+    render_page_template or render_not_found
   end
 
   private
@@ -874,7 +862,14 @@ file 'app/controllers/frontend_controller.rb', <<-'RUBY'
 class FrontendController < ApplicationController
   def show
     @entries = Dir.entries(Rails.root.join('app', 'views', 'frontend')) - [".", "..", "index.slim"]
-    render params[:template]
+    @entries.sort!
+    render_page_template or render_not_found
+  end
+
+  private
+
+  def render_page_template
+    render "frontend/#{params[:template]}" if template_exists?("frontend/#{params[:template]}")
   end
 end
 RUBY
@@ -884,7 +879,10 @@ file 'app/views/frontend/index.slim', <<-'SLIM'
   h1 Frontend Files:
   ul
     - @entries.each do |entry|
-      li = link_to entry, frontend_path(entry.gsub(/(.html)?\.\w+$/, ''))
+      li = link_to entry, frontend_template_path(entry.gsub(/(.html)?\.\w+$/, ''))
+SLIM
+
+file 'app/views/frontend/comparision_sheet.slim', <<-'SLIM'
 
 h1 Comparison Sheet:
 
@@ -1322,7 +1320,7 @@ section.l-page
         div: button type="submit"
 SLIM
 
-route "get 'frontend/:template' => 'frontend#show', as: :frontend unless Rails.env.production?"
+route "get 'frontend/:template' => 'frontend#show', as: :frontend_template unless Rails.env.production?"
 route "get 'frontend'           => 'frontend#show', defaults: { template: 'index' } unless Rails.env.production?"
 
 # ============================================================================
@@ -1496,6 +1494,8 @@ pt-BR:
     if (!devise_locations.include?(request.fullpath) && !request.xhr?)
       session[:user_return_to] = request.fullpath
     end
+
+    session[:user_return_to] = root_path if session[:user_return_to].blank?
   end
 
   def after_sign_out_path_for(resource_or_scope)
