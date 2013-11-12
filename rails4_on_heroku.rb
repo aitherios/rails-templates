@@ -271,7 +271,7 @@ guard: bundle exec guard start -i
 FILE
 
 file '.env', <<FILE
-WEB_CONCURRENCY=1
+WEB_CONCURRENCY=2
 RACK_ENV=none
 RAILS_ENV=development
 APP_HOSTNAME=localhost
@@ -1541,7 +1541,7 @@ gem 'rufus-scheduler'
 initializer 'heroku_wakeup.rb', <<-'RUBY'
 if ENV['HEROKU_WAKEUP'] == 'true'
   require 'rufus/scheduler'
-  scheduler = Rufus::Scheduler.start_new
+  scheduler = Rufus::Scheduler.new
 
   scheduler.every '10m' do
     require "net/http"
