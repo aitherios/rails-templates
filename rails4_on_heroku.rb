@@ -1637,7 +1637,7 @@ gem 'sentry-raven', group: :production
 gem 'sentry-raven', group: :staging
 
 initializer 'sentry.rb', <<-'RUBY'
-unless Rails.env.development?
+if Rails.env.production? or Rails.env.staging?
   Raven.configure do |config|
     config.current_environment = ENV['RAILS_ENV']
   end
