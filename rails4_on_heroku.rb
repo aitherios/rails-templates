@@ -132,11 +132,11 @@ def bootstrap_heroku_environment environment, options
   heroku_domain = `heroku domains --remote #{environment} | grep heroku`.strip
 
   heroku "config:set APP_HOSTNAME=#{heroku_domain} WEB_CONCURRENCY=3 RAILS_ENV=#{environment} RACK_ENV=#{environment}", repository_name
-  heroku "config:set BUILDPACK_URL='git://github.com/qnyp/heroku-buildpack-ruby-bower.git#run-bower'", repository_name
+  heroku "config:set BUILDPACK_URL='git://github.com/aitherios/heroku-buildpack-ruby-bower#master'", repository_name
 
   if options[:free_addons]
     heroku "config:add NEW_RELIC_APP_NAME=#{heroku_domain}", repository_name
-    heroku "addons:add newrelic:standard", repository_name
+    heroku "addons:add newrelic:stark", repository_name
     heroku "addons:add heroku-postgresql:dev", repository_name
     heroku "addons:add pgbackups:auto-month", repository_name
     heroku "addons:add memcachier:dev", repository_name
@@ -431,7 +431,7 @@ end
 # Compass
 # ============================================================================
 
-gem 'compass-rails', '~> 2.0.alpha.0'
+gem 'compass-rails', '>= 1.1.0'
 gem 'compass-normalize'
 gem 'singularitygs'
 gem 'singularity-extras'
@@ -784,6 +784,7 @@ html.no-js lang="#{I18n.locale}"
 
     section.l-page class="#{yield :wrapper_class}"
       == yield
+    == render 'layouts/google_analytics'
 SLIM
 
 file 'app/views/layouts/_metatags.slim', <<'SLIM'
@@ -828,6 +829,35 @@ file 'app/views/layouts/_browser_warning.slim', <<-'SLIM'
 /[if lte IE 7]
   p.browsehappy == t 'app.old_ie_warning'
 SLIM
+
+# ============================================================================
+# Google Analytics
+# ============================================================================
+
+file 'app/views/layouts/_google_analytics.slim', <<-'SLIM'
+- if ENV['GOOGLE_ANALYTICS_ID'].present?
+  javascript:
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', "#{ENV['GOOGLE_ANALYTICS_ID']}", {'cookieDomain': "#{ENV['APP_HOSTNAME']}"});
+    ga('send', 'pageview');
+SLIM
+
+# ============================================================================
+# Rake cache:clear task
+# ============================================================================
+
+file 'lib/tasks/cache.rake', <<-'RAKE'
+namespace :cache do
+  desc 'Clears Rails cache via Rails.cache.clear'
+  task clear: :environment do
+    Rails.cache.clear
+  end
+end
+RAKE
 
 # ============================================================================
 # Pages Controller, Frontend Controller
@@ -1529,7 +1559,7 @@ RUBY
 end
 
 file '.ruby-version', <<FIN
-ruby-2.0.0-p247
+ruby-2.0.0-p353
 FIN
 
 # ============================================================================
@@ -1668,6 +1698,25 @@ application(nil, env: :production) do <<-'RUBY'
     allow_reload: false,
     verbose: false
   }
+RUBY
+end
+
+# ============================================================================
+# Rack::Cors and assets/font config
+# ============================================================================
+
+gem 'rack-cors', require: 'rack/cors'
+
+application do <<-'RUBY'
+
+    config.middleware.insert_before ActionDispatch::Static, Rack::Cors do
+      allow do
+        origins '*'
+        resource '/assets/*', headers: :any, methods: :get
+      end
+    end
+
+    config.assets.paths << Rails.root.join('vendor', 'assets', 'fonts')
 RUBY
 end
 
